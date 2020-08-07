@@ -6,15 +6,10 @@
  */
 
 #include "ScanRequestMessage.hpp"
-#include <algorithm>
 #include "DataFormats.hpp"
 #include "TcpSerializationHelpers.hpp"
-
-#ifdef __linux__
-#include <arpa/inet.h>
-#else
-#include <winsock2.h>
-#endif
+#include "NetworkIncludes.hpp"
+#include <algorithm>
 
 using namespace joescan;
 
@@ -29,18 +24,16 @@ ScanRequest::ScanRequest(jsDataFormat format, uint32_t clientAddress,
   this->cameraId = 0; // TODO: If these become useful, don't hardcode.
   this->laserId = 0;  // TODO: If these become useful, don't hardcode.
   this->flags = 0;    // TODO: If these become useful, don't hardcode.
-  minimumLaserExposure = static_cast<uint32_t>(config.MinLaserOn() * 1000.0);
-  defaultLaserExposure =
-    static_cast<uint32_t>(config.DefaultLaserOn() * 1000.0);
-  maximumLaserExposure = static_cast<uint32_t>(config.MaxLaserOn() * 1000.0);
-  minimumCameraExposure = static_cast<uint32_t>(config.MinExposure() * 1000.0);
-  defaultCameraExposure =
-    static_cast<uint32_t>(config.DefaultExposure() * 1000.0);
-  maximumCameraExposure = static_cast<uint32_t>(config.MaxExposure() * 1000.0);
+  minimumLaserExposure = config.GetMinLaserOn();
+  defaultLaserExposure = config.GetDefaultLaserOn();
+  maximumLaserExposure = config.GetMaxLaserOn();
+  minimumCameraExposure = config.GetMinExposure();
+  defaultCameraExposure = config.GetDefaultExposure();
+  maximumCameraExposure = config.GetMaxExposure();
   laserDetectionThreshold = config.GetLaserDetectionThreshold();
   saturationThreshold = config.GetSaturationThreshold();
-  saturationPercent = config.SaturatedPercentage();
-  averageImageIntensity = config.AverageIntensity();
+  saturationPercent = config.GetSaturatedPercentage();
+  averageImageIntensity = config.GetAverageIntensity();
   scanInterval = interval;
   scanOffset = static_cast<uint32_t>(config.GetScanOffset());
   // If the caller requested a specific number of scans, obey them, otherwise
@@ -155,7 +148,7 @@ Datagram ScanRequest::Serialize(uint8_t requestSequence)
   std::vector<uint8_t> scanRequestPacket;
   scanRequestPacket.reserve(Length());
 
-  int index = 0;
+  size_t index = 0;
   index += SerializeIntegralToBytes(scanRequestPacket, &kCommandMagic);
 
   scanRequestPacket.push_back(Length());

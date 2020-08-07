@@ -5,21 +5,16 @@
  * root for license information.
  */
 
-#ifndef JSCANAPI_TCP_SERIALIZATION_HELPERS_H
-#define JSCANAPI_TCP_SERIALIZATION_HELPERS_H
+#ifndef JOESCAN_TCP_SERIALIZATION_HELPERS_H
+#define JOESCAN_TCP_SERIALIZATION_HELPERS_H
 
 #include <cstdint>
 #include <string>
 #include <typeinfo>
 #include <vector>
 
-#ifdef __linux__
-#include <arpa/inet.h>
-#else
-#include <winsock2.h>
-#endif
-
-#include "NetworkingTypes.hpp"
+#include "NetworkIncludes.hpp"
+#include "NetworkTypes.hpp"
 
 namespace joescan {
 // TODO: This is really only needed for 64-bit values, it's probably worth
@@ -44,8 +39,8 @@ T hostToNetwork(T value)
   return swizzled;
 }
 
-static int SerializeBytesToCollection(std::vector<uint8_t> &serialized,
-                                      size_t size, const uint8_t *ptr)
+static size_t SerializeBytesToCollection(std::vector<uint8_t> &serialized,
+                                         size_t size, const uint8_t *ptr)
 {
   // There must be a valid pointer if there is data to serialize, but it's
   // fine to not supply a valid pointer when there is no data.
@@ -61,7 +56,7 @@ static int SerializeBytesToCollection(std::vector<uint8_t> &serialized,
 }
 
 template <typename T>
-int SerializeIntegralToBytes(std::vector<uint8_t> &serialized, const T *ptr)
+size_t SerializeIntegralToBytes(std::vector<uint8_t> &serialized, const T *ptr)
 {
   T value = hostToNetwork<T>(*ptr);
   return SerializeBytesToCollection(serialized, sizeof(T),
@@ -81,15 +76,16 @@ T DeserializeIntegralFromBytes(std::vector<uint8_t> &serialized)
   return value;
 }
 
-static int SerializeStringToBytes(std::vector<uint8_t> &serialized,
-                                  const std::string &str)
+static size_t SerializeStringToBytes(std::vector<uint8_t> &serialized,
+                                     const std::string &str)
 {
   const uint8_t *bytePtr = reinterpret_cast<const uint8_t *>(str.data());
   // TODO: 8 byte length value is overkill, cast to 4?  If so, MUST change
   // the corresponding length in DeserializeStringFromBytes.
-  size_t length = hostToNetwork(str.length());
-  int count = SerializeBytesToCollection(serialized, sizeof(length),
-                                         reinterpret_cast<uint8_t *>(&length));
+  size_t length, count;
+  length = hostToNetwork(str.length());
+  count = SerializeBytesToCollection(serialized, sizeof(length),
+                                     reinterpret_cast<uint8_t *>(&length));
 
   count += SerializeBytesToCollection(serialized, str.length(), bytePtr);
   return count;
@@ -121,6 +117,11 @@ static std::string DeserializeStringFromBytes(std::vector<uint8_t> &serialized)
   return str;
 }
 
+#ifdef _MSC_VER
+#pragma warning(push)
+// C4244: 'argument': conversion from 'T' to 'u_long', possible loss of data
+#pragma warning(disable : 4244)
+#endif //_MSC_VER
 /**
  * Interprets a number of bytes located in `buf` as the datatype of `data`
  * and sets `data` equal to the network-to-host translation of that
@@ -157,6 +158,10 @@ int ExtractFromNetworkBuffer(T &data, uint8_t *buf)
 
   return sizeof(T);
 }
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif //_MSC_VER
+
 } // namespace joescan
 
-#endif // JSCANAPI_TCP_SERIALIZATION_HELPERS_H
+#endif // JOESCAN_TCP_SERIALIZATION_HELPERS_H

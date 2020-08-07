@@ -5,8 +5,8 @@
  * root for license information.
  */
 
-#ifndef JSCANAPI_POINT2D_INCLUDED
-#define JSCANAPI_POINT2D_INCLUDED
+#ifndef JOESCAN_POINT2D_INCLUDED
+#define JOESCAN_POINT2D_INCLUDED
 
 #include <cstdint>
 

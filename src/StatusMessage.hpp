@@ -5,13 +5,13 @@
  * root for license information.
  */
 
-#ifndef JSCANAPI_STATUS_MESSAGE_H
-#define JSCANAPI_STATUS_MESSAGE_H
+#ifndef JOESCAN_STATUS_MESSAGE_H
+#define JOESCAN_STATUS_MESSAGE_H
 
 #include <array>
 #include <vector>
 
-#include "NetworkingTypes.hpp"
+#include "NetworkTypes.hpp"
 #include "VersionInformation.hpp"
 
 namespace joescan {
@@ -286,4 +286,4 @@ class StatusMessage {
 };
 } // namespace joescan
 
-#endif // JSCANAPI_STATUS_MESSAGE_H
+#endif // JOESCAN_STATUS_MESSAGE_H

@@ -5,8 +5,8 @@
  * root for license information.
  */
 
-#ifndef JSCANAPI_SCAN_WINDOW_H
-#define JSCANAPI_SCAN_WINDOW_H
+#ifndef JOESCAN_SCAN_WINDOW_H
+#define JOESCAN_SCAN_WINDOW_H
 
 #include <vector>
 #include "SetWindowMessage.hpp"
@@ -55,4 +55,4 @@ class ScanWindow {
 };
 } // namespace joescan
 
-#endif // JSCANAPI_SCAN_WINDOW_H
+#endif // JOESCAN_SCAN_WINDOW_H

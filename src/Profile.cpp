@@ -30,7 +30,7 @@ Profile::Profile(DataType mask)
     image.resize(kMaxColumns * kMaxRows, 0);
     // this is a small optimization, cache the value to avoid repeated calls
     // to std::vector size() function
-    image_size = image.size();
+    image_size = static_cast<uint32_t>(image.size());
   }
 
   if ((mask & DataType::Brightness) || (mask & DataType::XYData)) {
@@ -42,7 +42,7 @@ Profile::Profile(DataType mask)
                 });
     // this is a small optimization, cache the value to avoid repeated calls
     // to std::vector size() function
-    data_size = data.size();
+    data_size = static_cast<uint32_t>(data.size());
   }
 
   if (mask & DataType::Subpixel) {

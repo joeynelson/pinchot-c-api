@@ -5,10 +5,11 @@
  * root for license information.
  */
 
-#ifndef JSCANAPI_SCAN_MANAGER_H
-#define JSCANAPI_SCAN_MANAGER_H
+#ifndef JOESCAN_SCAN_MANAGER_H
+#define JOESCAN_SCAN_MANAGER_H
 
 #include "AlignmentParams.hpp"
+#include "PinchotConstants.hpp"
 #include "Profile.hpp"
 #include "ScanHeadReceiver.hpp"
 #include "ScanHeadSender.hpp"
@@ -146,6 +147,13 @@ class ScanManager {
   double GetScanRate() const;
 
   /**
+   * @brief Gets the max scan rate achievable for a given scan system.
+   *
+   * @return The maximum frequency in hertz.
+   */
+  double GetMaxScanRate();
+
+  /**
    * @brief Configures the type of data and its resolution to be returned
    * from the scan head when performing a scan.
    *
@@ -182,9 +190,8 @@ class ScanManager {
   ScanHeadSender sender;
 
   uint8_t session_id = 1;
-  const double kScanRateHzMax = 10000;
-  const double kScanRateHzMin = 0.02;
-  double scan_rate_hz_current_max = kScanRateHzMax;
+  const double kScanRateHzMax = kPinchotConstantMaxScanRate;
+  const double kScanRateHzMin = kPinchotConstantMinScanRate;
   double scan_rate_hz = 0.0;
 
   SystemState state = SystemState::Disconnected;
@@ -201,4 +208,4 @@ inline bool ScanManager::IsScanning() const
 }
 } // namespace joescan
 
-#endif // JSCANAPI_SCAN_MANAGER_H
+#endif // JOESCAN_SCAN_MANAGER_H

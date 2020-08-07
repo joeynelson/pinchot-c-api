@@ -5,14 +5,14 @@
  * root for license information.
  */
 
-#ifndef JSCANAPI_SCAN_REQUEST_MESSAGE_H
-#define JSCANAPI_SCAN_REQUEST_MESSAGE_H
+#ifndef JOESCAN_SCAN_REQUEST_MESSAGE_H
+#define JOESCAN_SCAN_REQUEST_MESSAGE_H
 
 #include <chrono>
 #include <set>
 
 #include "Enums.hpp"
-#include "NetworkingTypes.hpp"
+#include "NetworkTypes.hpp"
 #include "ScanHeadConfiguration.hpp"
 #include "joescan_pinchot.h"
 
@@ -146,7 +146,8 @@ class ScanRequest {
 
 inline int ScanRequest::Length() const
 {
-  return 74 + steps.size() * 2;
+  size_t sz = 74 + steps.size() * 2;
+  return static_cast<int>(sz);
 }
 
 inline UdpPacketType ScanRequest::GetRequestType() const
@@ -281,4 +282,4 @@ inline CameraExposureMode ScanRequest::GetExposureMode() const
 
 } // namespace joescan
 
-#endif // JSCANAPI_SCAN_REQUEST_H
+#endif // JOESCAN_SCAN_REQUEST_H

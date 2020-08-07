@@ -5,14 +5,14 @@
  * root for license information.
  */
 
-#ifndef JSCANAPI_DATA_PACKET_H
-#define JSCANAPI_DATA_PACKET_H
+#ifndef JOESCAN_DATA_PACKET_H
+#define JOESCAN_DATA_PACKET_H
 
 #include <map>
 #include <memory>
 #include <vector>
 
-#include "NetworkingTypes.hpp"
+#include "NetworkTypes.hpp"
 #include "joescan_pinchot.h"
 
 namespace joescan {
@@ -104,4 +104,4 @@ inline uint16_t DataPacket::GetEndColumn() const
 }
 } // namespace joescan
 
-#endif // JSCANAPI_DATA_PACKET_H
+#endif // JOESCAN_DATA_PACKET_H

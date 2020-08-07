@@ -5,8 +5,8 @@
  * root for license information.
  */
 
-#ifndef JSCANAPI_SCAN_HEAD_SHARED_H
-#define JSCANAPI_SCAN_HEAD_SHARED_H
+#ifndef JOESCAN_SCAN_HEAD_SHARED_H
+#define JOESCAN_SCAN_HEAD_SHARED_H
 
 #include <condition_variable>
 #include <mutex>
@@ -23,7 +23,7 @@ class ScanHeadShared {
  public:
   ScanHeadShared(std::string serial, uint32_t id);
 
-  ScanHeadConfiguration GetConfig() const;
+  ScanHeadConfiguration GetConfiguration() const;
   void SetConfig(ScanHeadConfiguration config);
 
   uint32_t AvailableProfiles();
@@ -35,6 +35,7 @@ class ScanHeadShared {
   void PushProfile(std::shared_ptr<Profile> profile);
 
   StatusMessage GetStatusMessage() const;
+  void ClearStatusMessage();
   void SetStatusMessage(StatusMessage status_message);
 
   uint64_t GetStatusMessageTimestamp() const;

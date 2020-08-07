@@ -5,8 +5,8 @@
  * root for license information.
  */
 
-#ifndef JSCANAPI_SCAN_HEAD_H
-#define JSCANAPI_SCAN_HEAD_H
+#ifndef JOESCAN_SCAN_HEAD_H
+#define JOESCAN_SCAN_HEAD_H
 
 #include "ScanHeadConfiguration.hpp"
 #include "ScanHeadShared.hpp"
@@ -61,7 +61,7 @@ class ScanHead {
    *
    * @return The configuration of the scan head.
    */
-  ScanHeadConfiguration GetConfig() const;
+  ScanHeadConfiguration GetConfiguration() const;
 
   /**
    * Gets the serial number of the scan head.
@@ -137,6 +137,11 @@ class ScanHead {
   StatusMessage GetStatusMessage() const;
 
   /**
+   * Clears out the last reported status message from a scan head.
+   */
+  void ClearStatusMessage();
+
+  /**
    * Sets the format of the data being presented to the end user
    *
    * @param format The format the data will be presented in
@@ -168,4 +173,4 @@ class ScanHead {
 };
 } // namespace joescan
 
-#endif // JSCANAPI_SCAN_HEAD_H
+#endif // JOESCAN_SCAN_HEAD_H

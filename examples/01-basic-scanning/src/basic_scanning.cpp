@@ -163,20 +163,14 @@ int main(int argc, char *argv[])
       throw std::runtime_error("failed to connect to all scan heads");
     }
 
-    // Once configured, we can then read the status from the scan head. Since
-    // each scan head was configured with a different scan window, they'll
-    // each have a different maximum scan rate.
-    for (auto scan_head : scan_heads) {
-      jsScanHeadStatus status;
-      r = jsScanHeadGetStatus(scan_head, &status);
-      if (0 > r) {
-        throw std::runtime_error("failed to read scan head status");
-      }
-      uint32_t serial = jsScanHeadGetSerial(scan_head);
-      uint32_t max_rate = status.max_scan_rate;
-      std::cout << serial << ": max scan rate is " << max_rate << " hz"
-                << std::endl;
+    // Once configured, we can then read the maximum scan rate supported by
+    // the scan system. This value depends on how all of the scan heads manged
+    // by the scan system are configured.
+    double max_scan_rate_hz = jsScanSystemGetMaxScanRate(scan_system);
+    if (max_scan_rate_hz <= 0.0) {
+      throw std::runtime_error("failed to read max scan rate");
     }
+    std::cout << "max scan rate is " << max_scan_rate_hz << std::endl;
 
     // Allocate memory for the profiles we will read out from the scan head
     // when we start scanning.

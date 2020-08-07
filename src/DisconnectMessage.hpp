@@ -9,7 +9,7 @@
 #define JSCAN_SERVER_DISCONNECT_MESSAGE_H
 
 #include <vector>
-#include "NetworkingTypes.hpp"
+#include "NetworkTypes.hpp"
 
 namespace joescan {
 class DisconnectMessage {

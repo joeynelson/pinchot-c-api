@@ -5,8 +5,8 @@
  * root for license information.
  */
 
-#ifndef JSCANAPI_VERSION_PARSER_H
-#define JSCANAPI_VERSION_PARSER_H
+#ifndef JOESCAN_VERSION_PARSER_H
+#define JOESCAN_VERSION_PARSER_H
 
 #include "VersionInformation.hpp"
 

@@ -55,6 +55,8 @@ void AlignmentParams::SetRoll(double roll)
   this->roll = roll;
   sin_roll = std::sin(roll * rho);
   cos_roll = std::cos(roll * rho);
+  sin_neg_roll = std::sin(-1.0 * roll * rho);
+  cos_neg_roll = std::cos(-1.0 * roll * rho);
 }
 
 void AlignmentParams::SetShiftX(double shift_x)

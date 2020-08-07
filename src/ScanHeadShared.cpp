@@ -18,7 +18,7 @@ ScanHeadShared::ScanHeadShared(std::string serial, uint32_t id)
   this->status_message_timestamp = 0;
 }
 
-ScanHeadConfiguration ScanHeadShared::GetConfig() const
+ScanHeadConfiguration ScanHeadShared::GetConfiguration() const
 {
   return config;
 }
@@ -30,7 +30,7 @@ void ScanHeadShared::SetConfig(ScanHeadConfiguration config)
 
 uint32_t ScanHeadShared::AvailableProfiles()
 {
-  return circ_buffer.size();
+  return static_cast<uint32_t>(circ_buffer.size());
 }
 
 uint32_t ScanHeadShared::WaitUntilAvailableProfiles(uint32_t count,
@@ -48,7 +48,7 @@ uint32_t ScanHeadShared::WaitUntilAvailableProfiles(uint32_t count,
     elapsed = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0);
   }
 
-  return circ_buffer.size();
+  return static_cast<uint32_t>(circ_buffer.size());
 }
 
 void ScanHeadShared::EnableWaitUntilAvailable(void)
@@ -106,6 +106,12 @@ void ScanHeadShared::PushProfile(std::shared_ptr<Profile> profile)
 StatusMessage ScanHeadShared::GetStatusMessage() const
 {
   return status_message;
+}
+
+void ScanHeadShared::ClearStatusMessage()
+{
+  status_message = StatusMessage();
+  status_message_timestamp = 0;
 }
 
 void ScanHeadShared::SetStatusMessage(StatusMessage status_message)

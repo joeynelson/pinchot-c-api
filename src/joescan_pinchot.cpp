@@ -7,6 +7,7 @@
 
 #include "joescan_pinchot.h"
 #include "NetworkInterface.hpp"
+#include "PinchotConstants.hpp"
 #include "ScanHead.hpp"
 #include "ScanManager.hpp"
 #include "VersionCompatibilityException.hpp"
@@ -14,6 +15,7 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <cmath>
 #include <string>
 
 // TODO: This should probably be placed in a header?
@@ -25,10 +27,8 @@
 #define JS50WX_NUM_ENCODERS (JS_ENCODER_2 + 1)
 #define JS50WX_MAX_CAMERA_HEIGHT (1088)
 #define JS50WX_MAX_CAMERA_WIDTH (1456)
-// TODO: The internal code has the minimum scan period being .00001 seconds,
-// implying a max scan rate of 100kHz? That seems wrong. I think most "fast"
-// customers run around 3kHz or 4kHz; guess I'll just set it to 5kHz?
-#define JS50WX_MAX_SCAN_RATE (5000)
+
+#define INVALID_DOUBLE(d) (std::isinf((d)) || std::isnan((d)))
 
 using namespace joescan;
 
@@ -138,7 +138,7 @@ int32_t jsGetScanHeadCapabilities(jsScanHeadType type,
         JS50WX_CAMERA_BRIGHTNESS_BIT_DEPTH;
       capabilities->max_camera_image_height = JS50WX_MAX_CAMERA_HEIGHT;
       capabilities->max_camera_image_width = JS50WX_MAX_CAMERA_WIDTH;
-      capabilities->max_scan_rate = JS50WX_MAX_SCAN_RATE;
+      capabilities->max_scan_rate = kPinchotConstantMaxScanRate;
       capabilities->num_cameras = JS50WX_NUM_CAMERAS;
       capabilities->num_encoders = JS50WX_NUM_ENCODERS;
       capabilities->num_lasers = JS50WX_NUM_LASERS;
@@ -478,6 +478,30 @@ bool jsScanSystemIsConnected(jsScanSystem scan_system)
 }
 
 EXPORTED
+double jsScanSystemGetMaxScanRate(jsScanSystem scan_system)
+{
+  double rate_hz = 0.0;
+
+  if (nullptr == scan_system) {
+    return rate_hz;
+  }
+
+  if (false == jsScanSystemIsConnected(scan_system)) {
+    return kPinchotConstantMaxScanRate;
+  }
+
+  try {
+    ScanManager *manager = static_cast<ScanManager *>(scan_system);
+    rate_hz = manager->GetMaxScanRate();
+  } catch (std::exception &e) {
+    (void)e;
+    rate_hz = -1.0;
+  }
+
+  return rate_hz;
+}
+
+EXPORTED
 int32_t jsScanSystemStartScanning(jsScanSystem scan_system, double rate_hz,
                                   jsDataFormat fmt)
 {
@@ -486,13 +510,15 @@ int32_t jsScanSystemStartScanning(jsScanSystem scan_system, double rate_hz,
 
   if (nullptr == scan_system) {
     return JS_ERROR_NULL_ARGUMENT;
+  } else if (INVALID_DOUBLE(rate_hz)) {
+    return JS_ERROR_INVALID_ARGUMENT;
   } else if (false == jsScanSystemIsConnected(scan_system)) {
     return JS_ERROR_NOT_CONNECTED;
   }
 
   try {
-    if (rate_hz > JS50WX_MAX_SCAN_RATE) {
-      // TODO: Remove this and implement more robust checking in the future.
+    double rate_hz_max = manager->GetMaxScanRate();
+    if (rate_hz > rate_hz_max) {
       r = JS_ERROR_INVALID_ARGUMENT;
     } else if (JS_DATA_FORMAT_CAMERA_IMAGE_FULL == fmt) {
       // we don't support continuous scans of image data
@@ -609,25 +635,24 @@ int32_t jsScanHeadConfigure(jsScanHead scan_head,
     return JS_ERROR_NULL_ARGUMENT;
   } else if (nullptr == config) {
     return JS_ERROR_NULL_ARGUMENT;
-  } else if (true == jsScanHeadIsConnected(scan_head)) {
-    return JS_ERROR_CONNECTED;
   }
 
   try {
     ScanHead *sh = static_cast<ScanHead *>(scan_head);
+    ScanManager &manager = sh->GetScanManager();
     ScanHeadConfiguration cfg;
 
-    // convert microseconds to milliseconds
-    cfg.SetLaserOnTime(
-      static_cast<double>(config->laser_on_time_min_us) / 1000.0,
-      static_cast<double>(config->laser_on_time_def_us) / 1000.0,
-      static_cast<double>(config->laser_on_time_max_us) / 1000.0);
+    if (true == manager.IsScanning()) {
+      return JS_ERROR_SCANNING;
+    }
 
-    // convert microseconds to milliseconds
-    cfg.SetCameraExposure(
-      static_cast<double>(config->camera_exposure_time_min_us) / 1000.0,
-      static_cast<double>(config->camera_exposure_time_def_us) / 1000.0,
-      static_cast<double>(config->camera_exposure_time_max_us) / 1000.0);
+    cfg.SetLaserOnTime(config->laser_on_time_min_us,
+                       config->laser_on_time_def_us,
+                       config->laser_on_time_max_us);
+
+    cfg.SetCameraExposure(config->camera_exposure_time_min_us,
+                          config->camera_exposure_time_def_us,
+                          config->camera_exposure_time_max_us);
 
     cfg.SetScanOffset(config->scan_offset_us);
     cfg.SetLaserDetectionThreshold(config->laser_detection_threshold);
@@ -655,17 +680,18 @@ int32_t jsScanHeadSetAlignment(jsScanHead scan_head, double roll_degrees,
 
   if (nullptr == scan_head) {
     return JS_ERROR_NULL_ARGUMENT;
+  } else if (INVALID_DOUBLE(roll_degrees) || INVALID_DOUBLE(shift_x) ||
+             INVALID_DOUBLE(shift_y)) {
+    return JS_ERROR_INVALID_ARGUMENT;
   } else if (true == jsScanHeadIsConnected(scan_head)) {
     return JS_ERROR_CONNECTED;
   }
 
   try {
     ScanHead *sh = static_cast<ScanHead *>(scan_head);
-    AlignmentParams alignment(roll_degrees,
-                              shift_x,
-                              shift_y,
+    AlignmentParams alignment(roll_degrees, shift_x, shift_y,
                               is_cable_downstream);
-    ScanHeadConfiguration config = sh->GetConfig();
+    ScanHeadConfiguration config = sh->GetConfiguration();
     config.SetAlignment(JS_CAMERA_0, alignment);
     config.SetAlignment(JS_CAMERA_1, alignment);
     sh->Configure(config);
@@ -686,17 +712,18 @@ int32_t jsScanHeadSetAlignmentCamera(jsScanHead scan_head, jsCamera camera,
 
   if (nullptr == scan_head) {
     return JS_ERROR_NULL_ARGUMENT;
+  } else if (INVALID_DOUBLE(roll_degrees) || INVALID_DOUBLE(shift_x) ||
+             INVALID_DOUBLE(shift_y)) {
+    return JS_ERROR_INVALID_ARGUMENT;
   } else if (true == jsScanHeadIsConnected(scan_head)) {
     return JS_ERROR_CONNECTED;
   }
 
   try {
     ScanHead *sh = static_cast<ScanHead *>(scan_head);
-    AlignmentParams alignment(roll_degrees,
-                              shift_x,
-                              shift_y,
+    AlignmentParams alignment(roll_degrees, shift_x, shift_y,
                               is_cable_downstream);
-    ScanHeadConfiguration config = sh->GetConfig();
+    ScanHeadConfiguration config = sh->GetConfiguration();
     config.SetAlignment(camera, alignment);
     sh->Configure(config);
   } catch (std::exception &e) {
@@ -716,6 +743,9 @@ int32_t jsScanHeadSetWindowRectangular(jsScanHead scan_head, double window_top,
 
   if (nullptr == scan_head) {
     return JS_ERROR_NULL_ARGUMENT;
+  } else if (INVALID_DOUBLE(window_top) || INVALID_DOUBLE(window_bottom) ||
+             INVALID_DOUBLE(window_left) || INVALID_DOUBLE(window_right)) {
+    return JS_ERROR_INVALID_ARGUMENT;
   } else if (true == jsScanHeadIsConnected(scan_head)) {
     return JS_ERROR_CONNECTED;
   }
@@ -724,7 +754,7 @@ int32_t jsScanHeadSetWindowRectangular(jsScanHead scan_head, double window_top,
     ScanHead *sh = static_cast<ScanHead *>(scan_head);
     ScanWindow window(window_top, window_bottom, window_left, window_right);
 
-    ScanHeadConfiguration config = sh->GetConfig();
+    ScanHeadConfiguration config = sh->GetConfiguration();
     config.SetWindow(window);
     sh->Configure(config);
   } catch (std::range_error &e) {
@@ -749,12 +779,11 @@ bool jsScanHeadIsConnected(jsScanHead scan_head)
 
   try {
     ScanHead *sh = static_cast<ScanHead *>(scan_head);
-    // TODO: Add connection feature to ScanHead class. For now, we'll just say
-    // that if there is a status message with a non-zero timestamp, we are
-    // successfully connected.
+    ScanManager &mgr = sh->GetScanManager();
+
     StatusMessage message = sh->GetStatusMessage();
     auto timestamp = message.GetGlobalTime();
-    if (0 != timestamp) {
+    if ((mgr.IsConnected()) && (0 != timestamp)) {
       is_connected = true;
     }
   } catch (std::exception &e) {
@@ -847,15 +876,14 @@ int32_t jsScanHeadGetRawProfiles(jsScanHead scan_head, jsRawProfile *profiles,
       memset(profiles[m].encoder_values, 0, sizeof(int64_t) * JS_ENCODER_MAX);
       std::vector<int64_t> e = p[m]->GetEncoderValues();
       std::copy(e.begin(), e.end(), profiles[m].encoder_values);
-      profiles[m].num_encoder_values = e.size();
+      profiles[m].num_encoder_values = static_cast<uint32_t>(e.size());
       assert(profiles[m].num_encoder_values < JS_ENCODER_MAX);
 
       std::vector<jsProfileData> data = p[m]->Data();
       // TODO: We shouldn't need to do this, but for now check to be safe.
       assert(data.size() == JS_RAW_PROFILE_DATA_LEN);
-    std:
       copy(data.begin(), data.end(), profiles[m].data);
-      profiles[m].data_len = data.size();
+      profiles[m].data_len = static_cast<uint32_t>(data.size());
       profiles[m].data_valid_brightness = p[m]->GetNumberValidBrightness();
       profiles[m].data_valid_xy = p[m]->GetNumberValidGeometry();
     }
@@ -906,7 +934,7 @@ int32_t jsScanHeadGetProfiles(jsScanHead scan_head, jsProfile *profiles,
       memset(profiles[m].encoder_values, 0, sizeof(int64_t) * JS_ENCODER_MAX);
       std::vector<int64_t> e = p[m]->GetEncoderValues();
       std::copy(e.begin(), e.end(), profiles[m].encoder_values);
-      profiles[m].num_encoder_values = e.size();
+      profiles[m].num_encoder_values = static_cast<uint32_t>(e.size());
       assert(profiles[m].num_encoder_values < JS_ENCODER_MAX);
 
       std::vector<jsProfileData> data = p[m]->Data();
@@ -960,25 +988,25 @@ int32_t jsScanHeadGetCameraImage(jsScanHead scan_head, jsCamera camera,
       auto num_cameras = capabilities.num_cameras;
 
       // use temporary config to enable/disable lasers for image capture
-      ScanHeadConfiguration user_config = sh->GetConfig();
+      ScanHeadConfiguration user_config = sh->GetConfiguration();
       ScanHeadConfiguration config(user_config);
       if (false == enable_lasers) {
-        config.SetLaserOnTime(0.0, 0.0, 0.0);
+        config.SetLaserOnTime(0, 0, 0);
       } else {
         // make sure laser on time does not exceed camera exposure as it
         // could violate an assumption in the scan server or FPGA
-        double laser_max = config.MaxLaserOn();
-        double laser_def = config.DefaultLaserOn();
-        double laser_min = config.MinLaserOn();
+        uint32_t laser_max = config.GetMaxLaserOn();
+        uint32_t laser_def = config.GetDefaultLaserOn();
+        uint32_t laser_min = config.GetMinLaserOn();
 
-        if (laser_max > config.MaxExposure()) {
-          laser_max = config.MaxExposure();
+        if (laser_max > config.GetMaxExposure()) {
+          laser_max = config.GetMaxExposure();
         }
-        if (laser_def > config.DefaultExposure()) {
-          laser_def = config.DefaultExposure();
+        if (laser_def > config.GetDefaultExposure()) {
+          laser_def = config.GetDefaultExposure();
         }
-        if (laser_min > config.MinExposure()) {
-          laser_min = config.MinExposure();
+        if (laser_min > config.GetMinExposure()) {
+          laser_min = config.GetMinExposure();
         }
 
         config.SetLaserOnTime(laser_min, laser_def, laser_max);
@@ -986,7 +1014,11 @@ int32_t jsScanHeadGetCameraImage(jsScanHead scan_head, jsCamera camera,
       sh->Configure(config);
 
       // calculate the rate at which images are made
-      double rate_hz = 1.0 / (num_cameras * config.MaxExposure() * 1e-3);
+      double rate_hz = 1.0 / (num_cameras * config.GetMaxExposure() * 1e-6);
+      // cap the max rate at which images are done
+      if (rate_hz > 2.0) {
+        rate_hz = 2.0;
+      }
       manager.SetScanRate(rate_hz);
       manager.SetRequestedDataFormat(JS_DATA_FORMAT_CAMERA_IMAGE_FULL);
       manager.StartScanning(sh);
@@ -1013,7 +1045,7 @@ int32_t jsScanHeadGetCameraImage(jsScanHead scan_head, jsCamera camera,
           memset(image->encoder_values, 0, sizeof(int64_t) * JS_ENCODER_MAX);
           std::vector<int64_t> e = p[m]->GetEncoderValues();
           std::copy(e.begin(), e.end(), image->encoder_values);
-          image->num_encoder_values = e.size();
+          image->num_encoder_values = static_cast<uint32_t>(e.size());
           assert(image->num_encoder_values < JS_ENCODER_MAX);
 
           // TODO: should probably come from somewhere other than defines
@@ -1066,7 +1098,6 @@ int32_t jsScanHeadGetStatus(jsScanHead scan_head, jsScanHeadStatus *status)
     }
 
     status->global_time_ns = msg.GetGlobalTime();
-    status->max_scan_rate = msg.GetMaxScanRate();
     status->num_profiles_sent = msg.GetNumProfilesSent();
 
     std::fill(std::begin(status->encoder_values),
@@ -1074,7 +1105,7 @@ int32_t jsScanHeadGetStatus(jsScanHead scan_head, jsScanHeadStatus *status)
 
     std::vector<int64_t> e = msg.GetEncoders();
     std::copy(e.begin(), e.end(), status->encoder_values);
-    status->num_encoder_values = e.size();
+    status->num_encoder_values = static_cast<uint32_t>(e.size());
     assert(status->num_encoder_values < JS_ENCODER_MAX);
 
     for (int n = 0; n < JS_CAMERA_MAX; n++) {

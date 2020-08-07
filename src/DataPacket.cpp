@@ -16,7 +16,6 @@
 #include <arpa/inet.h>
 #else
 #include <WinSock2.h>
-
 #endif
 
 using namespace joescan;
@@ -45,7 +44,7 @@ DataPacket::DataPacket(uint8_t *bytes, uint32_t num_bytes,
   contents =
     static_cast<DataType>(ntohs(*(reinterpret_cast<uint16_t *>(&bytes[18]))));
   std::bitset<8 * sizeof(uint16_t)> contents_bits(contents);
-  num_content_types = contents_bits.count();
+  num_content_types = static_cast<int>(contents_bits.count());
 
   payload_length = ntohs(*(reinterpret_cast<uint16_t *>(&bytes[20])));
   num_encoder_vals = bytes[22];

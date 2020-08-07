@@ -176,6 +176,12 @@ int main(int argc, char *argv[])
       throw std::runtime_error("failed to connect to all scan heads");
     }
 
+    double max_scan_rate_hz = jsScanSystemGetMaxScanRate(scan_system);
+    if (max_scan_rate_hz <= 0.0) {
+      throw std::runtime_error("failed to read max scan rate");
+    }
+    std::cout << "max scan rate is " << max_scan_rate_hz << std::endl;
+
     std::cout << "start scanning" << std::endl;
     jsDataFormat data_format = JS_DATA_FORMAT_XY_FULL_LM_FULL;
     double scan_rate_hz = 500;

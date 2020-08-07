@@ -60,5 +60,7 @@ int VersionParser::Deserialize(VersionInformation &vi, uint8_t *data)
   idx_p += ExtractFromNetworkBuffer(vi.hwid, idx_p);
   idx_p += ExtractFromNetworkBuffer(vi.flags, idx_p);
 
-  return idx_p - data;
+  int bytes_deserialized = static_cast<int>(idx_p - data);
+
+  return bytes_deserialized;
 }

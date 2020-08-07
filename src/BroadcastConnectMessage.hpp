@@ -10,7 +10,7 @@
 
 #include <vector>
 #include "Enums.hpp"
-#include "NetworkingTypes.hpp"
+#include "NetworkTypes.hpp"
 
 namespace joescan {
 class BroadcastConnectMessage {

@@ -5,13 +5,13 @@
  * root for license information.
  */
 
-#ifndef JSCANAPI_PROFILE_H
-#define JSCANAPI_PROFILE_H
+#ifndef JOESCAN_PROFILE_H
+#define JOESCAN_PROFILE_H
 
 #include <memory>
 #include <vector>
 
-#include "NetworkingTypes.hpp"
+#include "NetworkTypes.hpp"
 #include "Point2D.hpp"
 #include "joescan_pinchot.h"
 
@@ -264,4 +264,4 @@ inline void Profile::InsertPoint(uint32_t idx, Point2D<int32_t> value)
 }
 } // namespace joescan
 
-#endif // JSCANAPI_PROFILE_H
+#endif // JOESCAN_PROFILE_H

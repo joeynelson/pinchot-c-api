@@ -117,7 +117,7 @@ void ScanHeadSender::SendMain()
           scanner_addr.sin_port = htons(kScanServerPort);
 
           const char *data = reinterpret_cast<const char *>(datagram->data());
-          const unsigned int len = datagram->size();
+          const uint32_t len = static_cast<uint32_t>(datagram->size());
           int r = sendto(sockfd, data, len, 0,
                          reinterpret_cast<sockaddr *>(&scanner_addr),
                          sizeof(scanner_addr));

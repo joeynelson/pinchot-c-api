@@ -11,7 +11,7 @@
 #include "BroadcastConnectMessage.hpp"
 #include "DisconnectMessage.hpp"
 #include "NetworkInterface.hpp"
-#include "NetworkingTypes.hpp"
+#include "NetworkTypes.hpp"
 #include "Profile.hpp"
 #include "ScanRequestMessage.hpp"
 #include "SetWindowMessage.hpp"
@@ -152,7 +152,7 @@ void ScanManager::RemoveAllScanners()
 
 uint32_t ScanManager::GetNumberScanners()
 {
-  return scanners_by_serial.size();
+  return static_cast<uint32_t>(scanners_by_serial.size());
 }
 
 std::map<std::string, ScanHead *> ScanManager::Connect(uint32_t timeout_s)
@@ -202,7 +202,7 @@ std::map<std::string, ScanHead *> ScanManager::Connect(uint32_t timeout_s)
       ScanHead *scan_head = pair.second;
       uint32_t ip_addr = scan_head->GetIpAddress();
       std::vector<WindowConstraint> constraints =
-        scan_head->GetConfig().ScanWindow().Constraints();
+        scan_head->GetConfiguration().GetScanWindow().Constraints();
 
       // camera 0 window constraint configuration
       auto msg0 = SetWindowMessage(0);
@@ -214,14 +214,14 @@ std::map<std::string, ScanHead *> ScanManager::Connect(uint32_t timeout_s)
         x = static_cast<int32_t>(constraint.constraints[0].x);
         y = static_cast<int32_t>(constraint.constraints[0].y);
         // convert the point to the camera's coordinate system
-        p0 = scan_head->GetConfig().Alignment(0).MillToCamera(x, y);
+        p0 = scan_head->GetConfiguration().Alignment(0).MillToCamera(x, y);
         // calculate the second point of out window constraint
         x = static_cast<int32_t>(constraint.constraints[1].x);
         y = static_cast<int32_t>(constraint.constraints[1].y);
         // convert the point to the camera's coordinate system
-        p1 = scan_head->GetConfig().Alignment(0).MillToCamera(x, y);
+        p1 = scan_head->GetConfiguration().Alignment(0).MillToCamera(x, y);
         // pass constraint points to message to create the constraint
-        if (scan_head->GetConfig().Alignment(0).GetFlipX()) {
+        if (scan_head->GetConfiguration().Alignment(0).GetFlipX()) {
           msg0.AddConstraint(p1.x, p1.y, p0.x, p0.y);
         } else {
           msg0.AddConstraint(p0.x, p0.y, p1.x, p1.y);
@@ -240,14 +240,14 @@ std::map<std::string, ScanHead *> ScanManager::Connect(uint32_t timeout_s)
         x = static_cast<int32_t>(constraint.constraints[0].x);
         y = static_cast<int32_t>(constraint.constraints[0].y);
         // convert the point to the camera's coordinate system
-        p0 = scan_head->GetConfig().Alignment(1).MillToCamera(x, y);
+        p0 = scan_head->GetConfiguration().Alignment(1).MillToCamera(x, y);
         // calculate the second point of out window constraint
         x = static_cast<int32_t>(constraint.constraints[1].x);
         y = static_cast<int32_t>(constraint.constraints[1].y);
         // convert the point to the camera's coordinate system
-        p1 = scan_head->GetConfig().Alignment(1).MillToCamera(x, y);
+        p1 = scan_head->GetConfiguration().Alignment(1).MillToCamera(x, y);
         // pass constraint points to message to create the constraint
-        if (scan_head->GetConfig().Alignment(1).GetFlipX()) {
+        if (scan_head->GetConfiguration().Alignment(1).GetFlipX()) {
           msg1.AddConstraint(p1.x, p1.y, p0.x, p0.y);
         } else {
           msg1.AddConstraint(p0.x, p0.y, p1.x, p1.y);
@@ -259,14 +259,6 @@ std::map<std::string, ScanHead *> ScanManager::Connect(uint32_t timeout_s)
 
     // allow enough time for the scan heads to fully configure
     std::this_thread::sleep_for(std::chrono::seconds(1));
-
-    for (auto const &pair : scanners_by_serial) {
-      ScanHead *scan_head = pair.second;
-      double rate_hz = scan_head->GetStatusMessage().GetMaxScanRate();
-      if (rate_hz < scan_rate_hz_current_max) {
-        scan_rate_hz_current_max = rate_hz;
-      }
-    }
   }
 
   return connected;
@@ -295,9 +287,14 @@ void ScanManager::Disconnect()
   }
   sender.Stop();
 
-  // TODO: Do we need to clear out the status message for the scan heads?
-  // Maybe just something to make sure the Scan Heads don't still report being
-  // connected.
+  // slight delay to make sure no new status messages are in route
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+  for (auto const &pair : scanners_by_serial) {
+    std::string serial = pair.first;
+    ScanHead *scan_head = pair.second;
+    scan_head->ClearStatusMessage();
+  }
 
   state = SystemState::Disconnected;
 }
@@ -333,7 +330,7 @@ void ScanManager::StartScanning()
                         scan_head->GetId(),
                         static_cast<uint32_t>(ceil(interval)),
                         0xFFFFFFFF, // uint32_t max
-                        scan_head->GetConfig());
+                        scan_head->GetConfiguration());
 
     auto ip_addr_and_request =
       std::make_pair(scan_head->GetIpAddress(), request.Serialize(session_id));
@@ -378,7 +375,7 @@ void ScanManager::StartScanning(ScanHead *scan_head)
   ScanRequest request(scan_head->GetDataFormat(), 0, receiver->GetPort(),
                       scan_head->GetId(), interval,
                       0xFFFFFFFF, // uint32_t max
-                      scan_head->GetConfig());
+                      scan_head->GetConfiguration());
 
   requests.push_back(
     std::make_pair(scan_head->GetIpAddress(), request.Serialize(session_id)));
@@ -402,6 +399,8 @@ void ScanManager::StopScanning()
 
 void ScanManager::SetScanRate(double rate_hz)
 {
+  double max_rate_hz = GetMaxScanRate();
+
   if ((rate_hz > kScanRateHzMax) || (rate_hz < kScanRateHzMin)) {
     std::stringstream error_msg;
 
@@ -409,12 +408,12 @@ void ScanManager::SetScanRate(double rate_hz)
               << kScanRateHzMin << " Hz and " << kScanRateHzMax << "Hz";
 
     throw std::runtime_error(error_msg.str());
-  } else if (rate_hz > scan_rate_hz_current_max) {
+  } else if (rate_hz > max_rate_hz) {
     std::stringstream error_msg;
 
     error_msg << "scan rate " << rate_hz
               << " exceeds max scan rate allowed by window, must be less than "
-              << scan_rate_hz_current_max << "Hz";
+              << max_rate_hz << "Hz";
 
     throw std::runtime_error(error_msg.str());
   }
@@ -425,6 +424,32 @@ void ScanManager::SetScanRate(double rate_hz)
 double ScanManager::GetScanRate() const
 {
   return scan_rate_hz;
+}
+
+double ScanManager::GetMaxScanRate()
+{
+  double max_rate = kPinchotConstantMaxScanRate;
+
+  for (auto const &pair : scanners_by_serial) {
+    ScanHead *scan_head = pair.second;
+
+    // determine what the greatest maximum exposure is for all of the scan
+    // heads; we need this to determine the maximum scan rate of our system
+    ScanHeadConfiguration config = scan_head->GetConfiguration();
+
+    double laser_on_max_freq =
+      1000000.0 / static_cast<double>(config.GetMaxLaserOn());
+    if (laser_on_max_freq < max_rate) {
+      max_rate = laser_on_max_freq;
+    }
+
+    double rate_hz = scan_head->GetStatusMessage().GetMaxScanRate();
+    if (rate_hz < max_rate) {
+      max_rate = rate_hz;
+    }
+  }
+
+  return max_rate;
 }
 
 void ScanManager::SetRequestedDataFormat(jsDataFormat format)
@@ -467,53 +492,66 @@ std::map<std::string, ScanHead *> ScanManager::BroadcastConnect(
     }
   }
 
-  /////////////////////////////////////////////////////////////////////////////
-  // STEP 2: Send out BroadcastConnect packet for each scan head.
-  /////////////////////////////////////////////////////////////////////////////
   {
-    // spam each network interface with our connection message
-    for (auto const &iface : ifaces) {
-      for (auto const &pair : scanners_by_serial) {
-        std::string serial = pair.first;
-        ScanHead *scan_head = pair.second;
-        uint32_t scan_id = scan_head->GetId();
-        uint32_t ip_addr = iface.ip_addr;
-        uint16_t port = receivers_by_serial[serial]->GetPort();
-
-        // we want the scan head to connect to the client with these params
-        auto bytes = BroadcastConnectMessage(ip_addr, port, session_id, scan_id,
-                                             std::stoul(serial))
-                       .Serialize();
-
-        int sock = iface.sockfd;
-        const char *src = reinterpret_cast<const char *>(bytes.data());
-        const unsigned int len = bytes.size();
-
-        // client will send payload out according to these values
-        sockaddr_in addr;
-        memset(&addr, 0, sizeof(addr));
-        addr.sin_family = AF_INET;
-        addr.sin_addr.s_addr = htonl(INADDR_BROADCAST);
-        addr.sin_port = htons(kScanServerPort);
-
-        int r = sendto(sock, src, len, 0, reinterpret_cast<sockaddr *>(&addr),
-                       sizeof(addr));
-        if (0 >= r) {
-          // failed to send data to interface
-          break;
-        }
-      }
-    }
-  }
-  /////////////////////////////////////////////////////////////////////////////
-  // STEP 3: See which (if any) scan heads responded.
-  /////////////////////////////////////////////////////////////////////////////
-  {
-    static const int kConnectPollMs = 100;
+    static const int kConnectPollMs = 500;
     uint64_t time_start = std::time(nullptr);
     int32_t timeout_ms = timeout_s * 1000;
     bool is_connected = false;
+
     while ((false == is_connected) && (0 < timeout_ms)) {
+      if (connected.size() != scanners_by_serial.size()) {
+        ///////////////////////////////////////////////////////////////////////
+        // STEP 2: Send out BroadcastConnect packet for each scan head.
+        ///////////////////////////////////////////////////////////////////////
+        // spam each network interface with our connection message
+        for (auto const &iface : ifaces) {
+          for (auto const &pair : scanners_by_serial) {
+            std::string serial = pair.first;
+            ScanHead *scan_head = pair.second;
+            uint32_t scan_id = scan_head->GetId();
+            uint32_t ip_addr = iface.ip_addr;
+            uint16_t port = receivers_by_serial[serial]->GetPort();
+
+            // skip sending message to scan heads that are already connected
+            if (connected.find(serial) != connected.end()) {
+              continue;
+            }
+
+            // we want the scan head to connect to the client with these params
+            auto bytes = BroadcastConnectMessage(ip_addr, port, session_id,
+                                                 scan_id, std::stoul(serial))
+                           .Serialize();
+
+            SOCKET sock = iface.sockfd;
+            const char *src = reinterpret_cast<const char *>(bytes.data());
+            const uint32_t len = static_cast<uint32_t>(bytes.size());
+
+            // client will send payload out according to these values
+            sockaddr_in addr;
+            memset(&addr, 0, sizeof(addr));
+            addr.sin_family = AF_INET;
+            addr.sin_addr.s_addr = htonl(INADDR_BROADCAST);
+            addr.sin_port = htons(kScanServerPort);
+
+            int r = sendto(sock, src, len, 0,
+                           reinterpret_cast<sockaddr *>(&addr), sizeof(addr));
+            if (0 >= r) {
+              // failed to send data to interface
+              break;
+            }
+          }
+        }
+
+        // still waiting for status messages...
+        std::this_thread::sleep_for(std::chrono::milliseconds(kConnectPollMs));
+        timeout_ms -= kConnectPollMs;
+      } else {
+        is_connected = true;
+      }
+
+      /////////////////////////////////////////////////////////////////////////
+      // STEP 3: See which (if any) scan heads responded.
+      /////////////////////////////////////////////////////////////////////////
       for (auto const &pair : scanners_by_serial) {
         std::string serial = pair.first;
         ScanHead *scan_head = pair.second;
@@ -539,14 +577,6 @@ std::map<std::string, ScanHead *> ScanManager::BroadcastConnect(
           scan_head->SetIpAddress(msg.GetScanHeadIp());
           connected[serial] = scan_head;
         }
-      }
-
-      if (connected.size() != scanners_by_serial.size()) {
-        // still waiting for status messages...
-        std::this_thread::sleep_for(std::chrono::milliseconds(kConnectPollMs));
-        timeout_ms -= kConnectPollMs;
-      } else {
-        is_connected = true;
       }
     }
   }

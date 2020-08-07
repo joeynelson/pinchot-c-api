@@ -5,8 +5,8 @@
  * root for license information.
  */
 
-#ifndef JSCANAPI_SUBPIXEL_H
-#define JSCANAPI_SUBPIXEL_H
+#ifndef JOESCAN_SUBPIXEL_H
+#define JOESCAN_SUBPIXEL_H
 
 #include <cstdint>
 

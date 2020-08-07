@@ -11,25 +11,24 @@
 
 using namespace joescan;
 
-void ScanHeadConfiguration::SetLaserOnTime(double min, double def, double max)
+void ScanHeadConfiguration::SetLaserOnTime(uint32_t min, uint32_t def,
+                                           uint32_t max)
 {
   // NOTE: If the laser on time is set to zero, the laser will be turned off.
-  if ((0.0 != min) && (min < 0.01 || min > 650)) {
-    throw std::range_error("min_laser_on out of range (10μs - 650000μs)");
+  if ((0 != min) && (min < kMinLaserOnTimeUsec || min > kMaxLaserOnTimeUsec)) {
+    throw std::range_error("min laser on out of range");
   }
-  if ((0.0 != def) && (def < 0.01 || def > 650)) {
-    throw std::range_error("default_laser_on out of range (10μs - 650000μs)");
+  if ((0 != def) && (def < kMinLaserOnTimeUsec || def > kMaxLaserOnTimeUsec)) {
+    throw std::range_error("default laser on out of range");
   }
-  if ((0.0 != max) && (max < 0.01 || max > 650)) {
-    throw std::range_error("max_laser_on out of range (10μs - 650000μs)");
+  if ((0 != max) && (max < kMinLaserOnTimeUsec || max > kMaxLaserOnTimeUsec)) {
+    throw std::range_error("max laser out of range");
   }
   if (min > def) {
-    throw std::range_error(
-      "min_laser_on must be less than or equal to default_laser_on");
+    throw std::range_error("min laser on must be less than default");
   }
   if (max < def) {
-    throw std::range_error(
-      "max_laser_on must be greater than or equal to default_laser_on");
+    throw std::range_error("max laser on must be greater than default");
   }
 
   min_laser_on = min;
@@ -37,25 +36,23 @@ void ScanHeadConfiguration::SetLaserOnTime(double min, double def, double max)
   max_laser_on = max;
 }
 
-void ScanHeadConfiguration::SetCameraExposure(double min, double def,
-                                              double max)
+void ScanHeadConfiguration::SetCameraExposure(uint32_t min, uint32_t def,
+                                              uint32_t max)
 {
-  if (min < 0.01 || min > 6000) {
-    throw std::range_error("min_camera_on out of range (0.1ms - 6s)");
+  if ((min < kMinCameraExposureUsec) || (min > kMaxCameraExposureUsec)) {
+    throw std::range_error("min exposure out of range");
   }
-  if (def < 0.01 || def > 6000) {
-    throw std::range_error("default_camera_on out of range (0.1ms - 6s)");
+  if ((def < kMinCameraExposureUsec) || (def > kMaxCameraExposureUsec)) {
+    throw std::range_error("default exposure out of range");
   }
-  if (max < 0.01 || max > 6000) {
-    throw std::range_error("max_camera_on out of range (0.1ms - 6s)");
+  if ((max < kMinCameraExposureUsec) || (max > kMaxCameraExposureUsec)) {
+    throw std::range_error("max exposure out of range");
   }
   if (min > def) {
-    throw std::range_error(
-      "min_camera_on must be less than or equal to default_camera_on");
+    throw std::range_error("min exposure must be less than default");
   }
   if (max < def) {
-    throw std::range_error(
-      "max_camera_on must be greater than or equal to default_camera_on");
+    throw std::range_error("max exposure must be greater than default");
   }
 
   min_exposure = min;
@@ -88,113 +85,109 @@ void ScanHeadConfiguration::SetWindow(const joescan::ScanWindow &window)
   this->window = window;
 }
 
-void ScanHeadConfiguration::SetLaserDetectionThreshold(int threshold)
+void ScanHeadConfiguration::SetLaserDetectionThreshold(uint32_t threshold)
 {
-  if (threshold < 0 || threshold > 1023) {
+  if ((threshold < 0) || (threshold > 1023)) {
     throw std::range_error("Laser detection threshold out of range (0-1023)");
   }
   this->laser_detection_threshold = threshold;
 }
 
-void ScanHeadConfiguration::SetSaturationThreshold(int threshold)
+void ScanHeadConfiguration::SetSaturationThreshold(uint32_t threshold)
 {
-  if (threshold < 0 || threshold > 1023) {
+  if ((threshold < 0) || (threshold > 1023)) {
     throw std::range_error("Saturation threshold out of range (0-1023)");
   }
   this->saturation_threshold = threshold;
 }
 
-void ScanHeadConfiguration::SetSaturationPercentage(int percentage)
+void ScanHeadConfiguration::SetSaturationPercentage(uint32_t percentage)
 {
-  if (percentage < 1 || percentage > 100) {
+  if ((percentage < 1) || (percentage > 100)) {
     throw std::range_error("Saturation percentage out of range (1-100)");
   }
 
   this->saturation_percentage = percentage;
 }
 
-void ScanHeadConfiguration::SetAverageIntensity(int intensity)
+void ScanHeadConfiguration::SetAverageIntensity(uint32_t intensity)
 {
-  if (intensity < 0 || intensity > 255) {
+  if ((intensity < 0) || (intensity > 255)) {
     throw std::range_error("Average intensity out of range (0-255)");
   }
   average_image_intensity = intensity;
 }
 
-void ScanHeadConfiguration::SetScanOffset(double offset)
+void ScanHeadConfiguration::SetScanOffset(uint32_t offset)
 {
   scan_offset = offset;
 }
 
-double ScanHeadConfiguration::MinLaserOn() const
+uint32_t ScanHeadConfiguration::GetMinLaserOn() const
 {
   return min_laser_on;
 }
 
-double ScanHeadConfiguration::DefaultLaserOn() const
+uint32_t ScanHeadConfiguration::GetDefaultLaserOn() const
 {
   return default_laser_on;
 }
 
-double ScanHeadConfiguration::MaxLaserOn() const
+uint32_t ScanHeadConfiguration::GetMaxLaserOn() const
 {
   return max_laser_on;
 }
 
-double ScanHeadConfiguration::MinExposure() const
+uint32_t ScanHeadConfiguration::GetMinExposure() const
 {
   return min_exposure;
 }
 
-double ScanHeadConfiguration::DefaultExposure() const
+uint32_t ScanHeadConfiguration::GetDefaultExposure() const
 {
   return default_exposure;
 }
 
-double ScanHeadConfiguration::MaxExposure() const
+uint32_t ScanHeadConfiguration::GetMaxExposure() const
 {
   return max_exposure;
 }
 
-int ScanHeadConfiguration::GetLaserDetectionThreshold() const
+uint32_t ScanHeadConfiguration::GetLaserDetectionThreshold() const
 {
   return laser_detection_threshold;
 }
 
-int ScanHeadConfiguration::GetSaturationThreshold() const
+uint32_t ScanHeadConfiguration::GetSaturationThreshold() const
 {
   return saturation_threshold;
 }
 
-int ScanHeadConfiguration::SaturatedPercentage() const
+uint32_t ScanHeadConfiguration::GetSaturatedPercentage() const
 {
   return saturation_percentage;
 }
 
-int ScanHeadConfiguration::AverageIntensity() const
+uint32_t ScanHeadConfiguration::GetAverageIntensity() const
 {
   return average_image_intensity;
 }
 
-double ScanHeadConfiguration::GetScanOffset() const
+uint32_t ScanHeadConfiguration::GetScanOffset() const
 {
   return scan_offset;
 }
 
-ScanWindow ScanHeadConfiguration::ScanWindow() const
+ScanWindow ScanHeadConfiguration::GetScanWindow() const
 {
   return window;
 }
 
 AlignmentParams ScanHeadConfiguration::Alignment(int camera) const
 {
-  if (camera < 0 || camera > 1) {
+  if ((camera < 0) || (camera > 1)) {
     throw std::runtime_error("Camera should be either 0 or 1");
   }
 
   return alignment[camera];
-}
-
-ScanHeadConfiguration::ScanHeadConfiguration()
-{
 }

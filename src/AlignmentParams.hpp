@@ -5,8 +5,8 @@
  * root for license information.
  */
 
-#ifndef JSCANAPI_ALIGNMENT_PARAMS_H
-#define JSCANAPI_ALIGNMENT_PARAMS_H
+#ifndef JOESCAN_ALIGNMENT_PARAMS_H
+#define JOESCAN_ALIGNMENT_PARAMS_H
 
 #include "Point2D.hpp"
 
@@ -184,4 +184,4 @@ inline Point2D<int32_t> AlignmentParams::MillToCamera(int32_t x,
 
 } // namespace joescan
 
-#endif // JSCANAPI_ALIGNMENT_PARAMS_H
+#endif // JOESCAN_ALIGNMENT_PARAMS_H

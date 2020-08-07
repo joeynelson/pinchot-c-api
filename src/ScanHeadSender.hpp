@@ -5,18 +5,19 @@
  * root for license information.
  */
 
-#ifndef JSCANAPI_SCAN_HEAD_SENDER_H
-#define JSCANAPI_SCAN_HEAD_SENDER_H
+#ifndef JOESCAN_SCAN_HEAD_SENDER_H
+#define JOESCAN_SCAN_HEAD_SENDER_H
+
+#include "DataPacket.hpp"
+#include "Profile.hpp"
+#include "NetworkIncludes.hpp"
+#include "StatusMessage.hpp"
 
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
 #include <queue>
 #include <thread>
-
-#include "DataPacket.hpp"
-#include "Profile.hpp"
-#include "StatusMessage.hpp"
 
 namespace joescan {
 class ScanHeadSender {
@@ -73,7 +74,7 @@ class ScanHeadSender {
   /** @brief Provides access lock to `send_message` queue. */
   std::mutex mutex_send;
 
-  int sockfd;
+  SOCKET sockfd;
   std::atomic<bool> is_running;
   std::atomic<bool> is_scanning;
 };

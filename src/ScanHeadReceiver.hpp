@@ -5,19 +5,21 @@
  * root for license information.
  */
 
-#ifndef JSCANAPI_SCAN_HEAD_RECEIVER_H
-#define JSCANAPI_SCAN_HEAD_RECEIVER_H
+#ifndef JOESCAN_SCAN_HEAD_RECEIVER_H
+#define JOESCAN_SCAN_HEAD_RECEIVER_H
+
+#include "DataPacket.hpp"
+#include "Profile.hpp"
+#include "ScanHeadShared.hpp"
+#include "NetworkIncludes.hpp"
+#include "NetworkInterface.hpp"
+#include "StatusMessage.hpp"
 
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
 #include <string>
 #include <thread>
-
-#include "DataPacket.hpp"
-#include "Profile.hpp"
-#include "ScanHeadShared.hpp"
-#include "StatusMessage.hpp"
 
 namespace joescan {
 class ScanManager;
@@ -62,12 +64,12 @@ class ScanHeadReceiver {
 
   ScanHeadShared &shared;
   std::atomic<enum ScanHeadReceiverState> state;
-  int sockfd;
+  SOCKET sockfd;
   int sockport;
   uint8_t *packet_buf;
   uint32_t packet_buf_len;
   uint64_t packets_received;
-  uint64_t packets_received_for_profile;
+  uint32_t packets_received_for_profile;
   uint64_t complete_profiles_received;
   uint64_t expected_packets_received;
   uint64_t expected_profiles_received;

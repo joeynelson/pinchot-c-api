@@ -11,12 +11,6 @@
 
 #include <fstream>
 
-#ifdef __linux__
-#include <arpa/inet.h>
-#else
-#include <winsock2.h>
-#endif
-
 using namespace joescan;
 
 SetWindowMessage::SetWindowMessage(int camera)
@@ -61,14 +55,17 @@ std::vector<uint8_t> SetWindowMessage::Serialize() const
 {
   std::vector<uint8_t> message;
   int constraint_size = 3 * sizeof(int32_t);
-  // TODO: This needs to be better explained/documented. It's not really
-  // obvious as to how the `sizeof` calls relate to the message fields.
-  int message_size = (constraints.size() * constraint_size) +
-                     (4 * sizeof(uint8_t)) + sizeof(uint32_t);
-
+  int message_size = 0;
+  {
+    // TODO: This needs to be better explained/documented. It's not really
+    // obvious as to how the `sizeof` calls relate to the message fields.
+    size_t sz = (constraints.size() * constraint_size) + (4 * sizeof(uint8_t)) +
+                sizeof(uint32_t);
+    message_size = static_cast<int>(sz);
+  }
   message.reserve(message_size);
 
-  int index = 0;
+  size_t index = 0;
   index += SerializeIntegralToBytes(message, &kCommandMagic);
   message.push_back(message_size);
   UdpPacketType type = UdpPacketType::SetWindow;

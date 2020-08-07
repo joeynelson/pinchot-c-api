@@ -9,7 +9,6 @@
 #include <memory>
 #include <sstream>
 
-#include "NetworkInterface.hpp"
 #include "ScanHeadReceiver.hpp"
 #include "joescan_pinchot.h"
 
@@ -109,7 +108,7 @@ void ScanHeadReceiver::ReceiveMain()
       std::unique_lock<std::mutex> lck(lock);
       sync.wait(lck);
     } else if (RECEIVER_START == state) {
-      nfds = sockfd + 1;
+      nfds = static_cast<int>(sockfd) + 1;
       FD_ZERO(&rfds);
       FD_SET(sockfd, &rfds);
       tv.tv_sec = 1;
@@ -212,7 +211,7 @@ void ScanHeadReceiver::ProcessPacket(DataPacket &packet)
     int16_t x_raw = 0;
     int16_t y_raw = 0;
     int camera_id = packet.GetCamera();
-    AlignmentParams alignment = shared.GetConfig().Alignment(camera_id);
+    AlignmentParams alignment = shared.GetConfiguration().Alignment(camera_id);
 
     for (unsigned int j = 0; j < layout.num_vals; j++) {
       x_raw = htons(*(reinterpret_cast<int16_t *>(&(raw_bytes[n]))));
@@ -260,14 +259,17 @@ void ScanHeadReceiver::ProcessPacket(DataPacket &packet)
 #endif
 
   if (datatype_mask & DataType::Image) {
-    FragmentLayout layout = packet.GetFragmentLayout(DataType::Image);
-    uint32_t len = kImageDataSize;
-    uint32_t m = current_packet * len;
-    uint32_t n = layout.offset;
-    // HACK HACK HACK: need to account for the fact that the scan_server sends
-    // back exposure value right shifted by 8 for image mode
-    profile_ptr->SetExposureTime(packet.GetExposureTime() << 8);
-    profile_ptr->InsertImageSlice(m, &(raw_bytes[n]), len);
+    // skip subpixel packet
+    if ((packets_received_for_profile + 1) != total_packets) {
+      FragmentLayout layout = packet.GetFragmentLayout(DataType::Image);
+      uint32_t len = kImageDataSize;
+      uint32_t m = current_packet * len;
+      uint32_t n = layout.offset;
+      // HACK HACK HACK: need to account for the fact that the scan_server sends
+      // back exposure value right shifted by 8 for image mode
+      profile_ptr->SetExposureTime(packet.GetExposureTime() << 8);
+      profile_ptr->InsertImageSlice(m, &(raw_bytes[n]), len);
+    }
   }
 
   packets_received_for_profile++;

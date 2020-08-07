@@ -7,9 +7,9 @@
 
 /**
  * @file joescan_pinchot.h
- * @author Joescan
+ * @author JoeScan
  * @brief This file contains the interface for the client software used to
- * control scanning for Joescan products.
+ * control scanning for JoeScan products.
  */
 
 #ifndef _JOESCAN_PINCHOT_H
@@ -211,7 +211,7 @@ typedef struct {
   /**
    * @brief Sets the minimum microseconds time value for the camera
    * autoexposure algorithm used when the scan head is in image mode. This
-   * value should be within the range of 100 to 6000000 microseconds.
+   * value should be within the range of 15 to 2000000 microseconds.
    *
    * @note To disable autoexposure algorithm, set `camera_exposure_time_min_us`,
    * `camera_exposure_time_max_us`, and `camera_exposure_time_def_us` to the
@@ -221,7 +221,7 @@ typedef struct {
   /**
    * @brief Sets the maximum microseconds time value for the camera
    * autoexposure algorithm used when the scan head is in image mode. This
-   * value should be within the range of 100 to 6000000 microseconds.
+   * value should be within the range of 15 to 2000000 microseconds.
    *
    * @note To disable autoexposure algorithm, set `camera_exposure_time_min_us`,
    * `camera_exposure_time_max_us`, and `camera_exposure_time_def_us` to the
@@ -231,7 +231,7 @@ typedef struct {
   /**
    * @brief Sets the default microseconds time value for the camera
    * autoexposure algorithm used when the scan head is in image mode. This
-   * value should be within the range of 100 to 6000000 microseconds.
+   * value should be within the range of 15 to 2000000 microseconds.
    *
    * @note To disable autoexposure algorithm, set `camera_exposure_time_min_us`,
    * `camera_exposure_time_max_us`, and `camera_exposure_time_def_us` to the
@@ -240,7 +240,7 @@ typedef struct {
   uint32_t camera_exposure_time_def_us;
   /**
    * @brief Sets the minimum microseconds time value for the laser on
-   * algorithm. This value should be within the range of 10 to 650000
+   * algorithm. This value should be within the range of 15 to 650000
    * microseconds.
    *
    * @note To disable the laser on algorithm, set `laser_on_time_min_us`,
@@ -249,7 +249,7 @@ typedef struct {
   uint32_t laser_on_time_min_us;
   /**
    * @brief Sets the maximum microseconds time value for the laser on
-   * algorithm. This value should be within the range of 10 to 650000
+   * algorithm. This value should be within the range of 15 to 650000
    * microseconds.
    *
    * @note To disable the laser on algorithm, set `laser_on_time_min_us`,
@@ -258,7 +258,7 @@ typedef struct {
   uint32_t laser_on_time_max_us;
   /**
    * @brief Sets the default microseconds time value for the laser on
-   * algorithm. This value should be within the range of 10 to 650000
+   * algorithm. This value should be within the range of 15 to 650000
    * microseconds.
    *
    * @note To disable the laser on algorithm, set `laser_on_time_min_us`,
@@ -301,8 +301,6 @@ typedef struct {
   int32_t camera_temp[JS_CAMERA_MAX];
   /** @brief Current temperature in Celsius reported by the mainboard. */
   int32_t mainboard_temp;
-  /** @brief The highest scan rate possible with the current configuration. */
-  uint32_t max_scan_rate;
   /** @brief Total number of profiles sent during the last scan period. */
   uint32_t num_profiles_sent;
   /** @brief Firmware major version number of the scan head. */
@@ -638,6 +636,16 @@ int32_t jsScanSystemDisconnect(jsScanSystem scan_system);
  */
 EXPORTED
 bool jsScanSystemIsConnected(jsScanSystem scan_system);
+
+/**
+ * @brief Obtains the maximum rate at which a given scan system can begin
+ * scanning when `jsScanSystemStartScanning` is called.
+ *
+ * @param scan_system Reference to system of scan heads.
+ * @return Floating point double value corresponding to the max scan rate.
+ */
+EXPORTED
+double jsScanSystemGetMaxScanRate(jsScanSystem scan_system);
 
 /**
  * @brief Commands scan heads in system to begin scanning, returning geometry

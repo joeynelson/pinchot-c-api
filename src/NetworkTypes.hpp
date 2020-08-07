@@ -5,8 +5,8 @@
  * root for license information.
  */
 
-#ifndef JSCANAPI_NETWORKING_TYPES_H
-#define JSCANAPI_NETWORKING_TYPES_H
+#ifndef JOESCAN_NETWORK_TYPES_H
+#define JOESCAN_NETWORK_TYPES_H
 
 #include <cstdint>
 #include <string>

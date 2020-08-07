@@ -5,8 +5,8 @@
  * root for license information.
  */
 
-#ifndef JSCANAPI_VERSION_INFORMATION_H
-#define JSCANAPI_VERSION_INFORMATION_H
+#ifndef JOESCAN_VERSION_INFORMATION_H
+#define JOESCAN_VERSION_INFORMATION_H
 
 #include <cstdint>
 

@@ -125,7 +125,7 @@ std::vector<uint8_t> StatusMessage::Serialize() const
   // We don't know the size of the message until this point, so
   // update the size field in the serialized message
   InfoHeader *hdr = reinterpret_cast<InfoHeader *>(message.data());
-  hdr->size = message.size();
+  hdr->size = static_cast<uint8_t>(message.size());
 
   return message;
 }
@@ -191,7 +191,7 @@ void StatusMessage::SetEncoders(std::vector<int64_t> encoders)
     for (unsigned int n = 0; n < encoders.size(); n++) {
       packet.encoders[n] = encoders[n];
     }
-    packet.valid_encoders = encoders.size();
+    packet.valid_encoders = static_cast<uint8_t>(encoders.size());
   }
 }
 

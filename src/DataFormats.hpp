@@ -5,10 +5,10 @@
  * root for license information.
  */
 
-#ifndef JSCANAPI_DATA_FORMATS_H
-#define JSCANAPI_DATA_FORMATS_H
+#ifndef JOESCAN_DATA_FORMATS_H
+#define JOESCAN_DATA_FORMATS_H
 
-#include "NetworkingTypes.hpp"
+#include "NetworkTypes.hpp"
 #include "joescan_pinchot.h"
 
 #include <map>
@@ -25,4 +25,4 @@ class DataFormats {
     formats;
 };
 } // namespace joescan
-#endif // JSCANAPI_DATA_FORMATS_H
+#endif // JOESCAN_DATA_FORMATS_H

@@ -5,8 +5,8 @@
  * root for license information.
  */
 
-#ifndef JSCANAPI_ENUMS_H
-#define JSCANAPI_ENUMS_H
+#ifndef JOESCAN_ENUMS_H
+#define JOESCAN_ENUMS_H
 
 #include "enum.h"
 

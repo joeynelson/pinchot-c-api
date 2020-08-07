@@ -5,17 +5,13 @@
  * root for license information.
  */
 
-#ifndef JSCANAPI_NETWORK_INTERFACE_H
-#define JSCANAPI_NETWORK_INTERFACE_H
+#ifndef JOESCAN_NETWORK_INTERFACE_H
+#define JOESCAN_NETWORK_INTERFACE_H
 
 #include <cstdint>
 #include <vector>
 
-#ifdef __linux__
-#include <netinet/ip.h>
-#else
-#include <WinSock2.h>
-#endif
+#include "NetworkIncludes.hpp"
 
 namespace joescan {
 /**
@@ -23,7 +19,7 @@ namespace joescan {
  * data relating to a network interface.
  */
 struct net_iface {
-  int sockfd;
+  SOCKET sockfd;
   uint32_t ip_addr;
   uint16_t port;
 };
@@ -39,7 +35,7 @@ class NetworkInterface {
   static net_iface InitBroadcastSocket(uint32_t ip, uint16_t port);
   static net_iface InitRecvSocket(uint32_t ip, uint16_t port);
   static net_iface InitSendSocket(uint32_t ip, uint16_t port);
-  static void CloseSocket(int sockfd);
+  static void CloseSocket(SOCKET sockfd);
 
   static std::vector<uint32_t> GetActiveIpAddresses();
 

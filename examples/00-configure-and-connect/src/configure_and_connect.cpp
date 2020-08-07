@@ -62,7 +62,6 @@ void print_scan_head_status(jsScanHeadStatus &stat)
   }
   std::cout << "\tmainboard_temp=" << stat.mainboard_temp << std::endl;
 
-  std::cout << "\tmax_scan_rate=" << stat.max_scan_rate << std::endl;
   std::cout << "\tnum_profiles_sent=" << stat.num_profiles_sent << std::endl;
 
   std::cout << "\tfirmware_version_major=" << stat.firmware_version_major

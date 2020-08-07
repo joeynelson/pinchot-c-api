@@ -10,28 +10,22 @@
 #include <sstream>
 #include <stdexcept>
 
+#include "NetworkIncludes.hpp"
+#include "NetworkInterface.hpp"
+#include "NetworkTypes.hpp"
+
 #ifdef __linux__
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 #include <netdb.h>
 #include <sys/types.h>
 #include <unistd.h>
-#define INVALID_SOCKET -1
-#define SOCKET_ERROR -1
 #else
-// TODO: inet_addr is deprecated in Windows
-// suggested to use either inet_pton or InetPton
-#define _WINSOCK_DEPRECATED_NO_WARNINGS
-#include <winsock2.h>
 #include <ws2tcpip.h>
 #include <iphlpapi.h>
-#define socklen_t int
 #pragma comment(lib, "iphlpapi.lib")
 #pragma comment(lib, "ws2_32.lib")
 #endif
-
-#include "NetworkInterface.hpp"
-#include "NetworkingTypes.hpp"
 
 using namespace joescan;
 
@@ -60,7 +54,7 @@ void NetworkInterface::FreeSystem(void)
 net_iface NetworkInterface::InitBroadcastSocket(uint32_t ip, uint16_t port)
 {
   net_iface iface;
-  int sockfd = INVALID_SOCKET;
+  SOCKET sockfd = INVALID_SOCKET;
   int r = 0;
 
   iface = InitUDPSocket(ip, port);
@@ -83,7 +77,7 @@ net_iface NetworkInterface::InitBroadcastSocket(uint32_t ip, uint16_t port)
 net_iface NetworkInterface::InitRecvSocket(uint32_t ip, uint16_t port)
 {
   net_iface iface;
-  int sockfd = INVALID_SOCKET;
+  SOCKET sockfd = INVALID_SOCKET;
   int r = 0;
 
   iface = InitUDPSocket(ip, port);
@@ -119,7 +113,7 @@ net_iface NetworkInterface::InitSendSocket(uint32_t ip, uint16_t port)
   return iface;
 }
 
-void NetworkInterface::CloseSocket(int sockfd)
+void NetworkInterface::CloseSocket(SOCKET sockfd)
 {
 #ifdef __linux__
   close(sockfd);
@@ -198,7 +192,7 @@ std::vector<uint32_t> NetworkInterface::GetActiveIpAddresses()
 net_iface NetworkInterface::InitUDPSocket(uint32_t ip, uint16_t port)
 {
   net_iface iface;
-  int sockfd = INVALID_SOCKET;
+  SOCKET sockfd = INVALID_SOCKET;
   int r = 0;
 
   sockfd = socket(AF_INET, SOCK_DGRAM, 0);

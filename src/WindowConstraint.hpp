@@ -5,8 +5,8 @@
  * root for license information.
  */
 
-#ifndef JSCANAPI_WINDOW_CONSTRAINT_H
-#define JSCANAPI_WINDOW_CONSTRAINT_H
+#ifndef JOESCAN_WINDOW_CONSTRAINT_H
+#define JOESCAN_WINDOW_CONSTRAINT_H
 
 #include <cstdint>
 #include "Point2D.hpp"

@@ -5,9 +5,9 @@
  * root for license information.
  */
 
-#include "ScanHead.hpp"
 #include "httplib.hpp"
 #include "json.hpp"
+#include "ScanHead.hpp"
 #include <iostream>
 
 using namespace joescan;
@@ -32,9 +32,9 @@ void ScanHead::Configure(ScanHeadConfiguration &config)
   this->shared.SetConfig(config);
 }
 
-ScanHeadConfiguration ScanHead::GetConfig() const
+ScanHeadConfiguration ScanHead::GetConfiguration() const
 {
-  return this->shared.GetConfig();
+  return this->shared.GetConfiguration();
 }
 
 std::string ScanHead::GetSerialNumber() const
@@ -88,6 +88,11 @@ uint32_t ScanHead::WaitUntilAvailableProfiles(uint32_t count,
 StatusMessage ScanHead::GetStatusMessage() const
 {
   return shared.GetStatusMessage();
+}
+
+void ScanHead::ClearStatusMessage()
+{
+  shared.ClearStatusMessage();
 }
 
 void ScanHead::SetDataFormat(jsDataFormat format)

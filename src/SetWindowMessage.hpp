@@ -5,8 +5,8 @@
  * root for license information.
  */
 
-#ifndef JSCANAPI_SCAN_WINDOW_MESSAGE_H
-#define JSCANAPI_SCAN_WINDOW_MESSAGE_H
+#ifndef JOESCAN_SCAN_WINDOW_MESSAGE_H
+#define JOESCAN_SCAN_WINDOW_MESSAGE_H
 
 #include <vector>
 
@@ -65,4 +65,4 @@ inline uint8_t SetWindowMessage::GetCameraId() const
 }
 } // namespace joescan
 
-#endif // JSCANAPI_SCAN_WINDOW_MESSAGE_H
+#endif // JOESCAN_SCAN_WINDOW_MESSAGE_H
