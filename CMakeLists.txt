@@ -18,10 +18,10 @@ set(PINCHOT_API_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 include(CAPISources)
 include(VersionInfo)
-target_include_directories(pinchot, PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
   
 add_library(pinchot SHARED ${C_API_SOURCES})
+target_include_directories(pinchot, PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
 target_link_libraries(pinchot ${CMAKE_THREAD_LIBS_INIT})
 install(TARGETS pinchot DESTINATION ${SRC_DIR})
 install(TARGETS pinchot DESTINATION ${CMAKE_INSTALL_LIBDIR})
