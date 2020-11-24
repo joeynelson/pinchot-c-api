@@ -20,7 +20,7 @@ include(CAPISources)
 include(VersionInfo)
   
 add_library(pinchot SHARED ${C_API_SOURCES})
-target_include_directories(pinchot, PUBLIC
+target_include_directories(pinchot PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
 target_link_libraries(pinchot ${CMAKE_THREAD_LIBS_INIT})
 install(TARGETS pinchot DESTINATION ${SRC_DIR})
