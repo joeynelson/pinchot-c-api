@@ -3,7 +3,7 @@ if (${PINCHOT_API_ROOT_DIR} STREQUAL "")
 endif()
 
 if(WIN32)
-  set(PARSE_COMMAND cmd.exe /c parse-version.py)
+  set(PARSE_COMMAND python parse-version.py)
 elseif(UNIX)
   set(PARSE_COMMAND ./parse-version.py)
 else()
