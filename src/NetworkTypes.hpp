@@ -78,6 +78,7 @@ inline DataType operator|(DataType original, DataType additionalType)
  * order, so all elements larger than 1 byte must be converted with
  * hton/ntoh.
  */
+#pragma pack(push, 1)
 struct DatagramHeader {
   uint16_t magic;                // 2    2
   uint16_t exposureTime;         // 2    4
@@ -94,16 +95,20 @@ struct DatagramHeader {
   uint32_t datagramPosition;     // hack to support big buffers
   uint32_t numberOfDatagrams;    // hack to support big buffers
 };
+#pragma pack(pop)
 
 /**
  * This is the header for any packet that is _not_ a profile
  * or image data packet. This header should never change.
  */
+#pragma pack(push, 1)
 struct InfoHeader {
   uint16_t magic;
   uint8_t size;
   uint8_t type;
 };
+#pragma pack(pop)
+
 } // namespace joescan
 
 #endif

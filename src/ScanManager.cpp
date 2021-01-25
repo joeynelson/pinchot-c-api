@@ -34,25 +34,15 @@ ScanManager::ScanManager()
 ScanManager::~ScanManager()
 {
   for (auto const &pair : scanners_by_serial) {
-    std::string serial = pair.first;
-    ScanHead *scanner = pair.second;
-    ScanHeadReceiver *receiver = receivers_by_serial[serial];
-    ScanHeadShared *shared = shares_by_serial[serial];
-
-    // stop the receiver thread from grabbing more UDP data
-    receiver->Shutdown();
-
-    // delete objects in opposite order that they were created
-    delete receiver;
-    delete scanner;
-    delete shared;
+    ScanHead *scan_head = pair.second;
+    delete scan_head;
   }
 
   sender.Shutdown();
   RemoveAllScanners();
 }
 
-ScanHead *ScanManager::CreateScanner(std::string serial_number, uint32_t id)
+ScanHead *ScanManager::CreateScanner(uint32_t serial_number, uint32_t id)
 {
   ScanHead *scanner = nullptr;
 
@@ -62,7 +52,7 @@ ScanHead *ScanManager::CreateScanner(std::string serial_number, uint32_t id)
   }
 
   if (scanners_by_serial.find(serial_number) != scanners_by_serial.end()) {
-    std::string error_msg = "Scanner " + serial_number + " is already managed.";
+    std::string error_msg = std::to_string(serial_number) + " already managed.";
     throw std::runtime_error(error_msg);
   }
 
@@ -71,20 +61,14 @@ ScanHead *ScanManager::CreateScanner(std::string serial_number, uint32_t id)
     throw std::runtime_error(error_msg);
   }
 
-  ScanHeadShared *shared = new ScanHeadShared(serial_number, id);
-  shares_by_serial[serial_number] = shared;
-
-  ScanHeadReceiver *receiver = new ScanHeadReceiver(*shared);
-  receivers_by_serial[serial_number] = receiver;
-
-  scanner = new ScanHead(*this, *shared);
+  scanner = new ScanHead(*this, serial_number, id);
   scanners_by_serial[serial_number] = scanner;
   scanners_by_id[id] = scanner;
 
   return scanner;
 }
 
-ScanHead *ScanManager::GetScanner(std::string serial_number)
+ScanHead *ScanManager::GetScanHeadBySerial(uint32_t serial_number)
 {
   auto scanner = scanners_by_serial.find(serial_number);
 
@@ -96,7 +80,7 @@ ScanHead *ScanManager::GetScanner(std::string serial_number)
   return scanner->second;
 }
 
-ScanHead *ScanManager::GetScanner(uint32_t id)
+ScanHead *ScanManager::GetScanHeadById(uint32_t id)
 {
   auto scanner = scanners_by_id.find(id);
   if (scanner == scanners_by_id.end()) {
@@ -107,7 +91,7 @@ ScanHead *ScanManager::GetScanner(uint32_t id)
   return scanner->second;
 }
 
-void ScanManager::RemoveScanner(std::string serial_number)
+void ScanManager::RemoveScanner(uint32_t serial_number)
 {
   if (IsScanning()) {
     std::string error_msg = "Can not remove scanner while scanning";
@@ -155,7 +139,7 @@ uint32_t ScanManager::GetNumberScanners()
   return static_cast<uint32_t>(scanners_by_serial.size());
 }
 
-std::map<std::string, ScanHead *> ScanManager::Connect(uint32_t timeout_s)
+std::map<uint32_t, ScanHead *> ScanManager::Connect(uint32_t timeout_s)
 {
   if (IsConnected()) {
     std::string error_msg = "Already connected.";
@@ -167,28 +151,16 @@ std::map<std::string, ScanHead *> ScanManager::Connect(uint32_t timeout_s)
     throw std::runtime_error(error_msg);
   }
 
-  std::map<std::string, ScanHead *> connected;
+  std::map<uint32_t, ScanHead *> connected;
   if (scanners_by_serial.empty()) {
     return connected;
   }
 
   for (auto const &pair : scanners_by_serial) {
-    std::string serial = pair.first;
     ScanHead *scan_head = pair.second;
-    ScanHeadReceiver *receiver = receivers_by_serial[serial];
-
-    if (!scan_head->ValidateConfig()) {
-      std::string error_msg = "Configuration validation failed for scanner " +
-                              scan_head->GetSerialNumber();
-
-      throw std::runtime_error(error_msg);
-    }
-
-    receiver->Start();
+    scan_head->ReceiveStart();
   }
 
-  // TODO: The idea is to ignore packets from different session id, eventually.
-  // for all receivers_by_serial call SetSessionId(session_id);
   session_id++;
   connected = BroadcastConnect(timeout_s);
   if (connected.size() == scanners_by_serial.size()) {
@@ -199,66 +171,65 @@ std::map<std::string, ScanHead *> ScanManager::Connect(uint32_t timeout_s)
     sender.Start();
 
     for (auto const &pair : scanners_by_serial) {
-      ScanHead *scan_head = pair.second;
-      uint32_t ip_addr = scan_head->GetIpAddress();
+      ScanHead *sh = pair.second;
+      uint32_t ip_addr = sh->GetIpAddress();
       std::vector<WindowConstraint> constraints =
-        scan_head->GetConfiguration().GetScanWindow().Constraints();
+        sh->GetWindow().GetConstraints();
 
-      // camera 0 window constraint configuration
-      auto msg0 = SetWindowMessage(0);
-      for (auto const &constraint : constraints) {
-        Point2D<int32_t> p0, p1;
-        int32_t x, y;
-        // note, units are in 1/1000 inch
-        // calculate the first point of our window constraint
-        x = static_cast<int32_t>(constraint.constraints[0].x);
-        y = static_cast<int32_t>(constraint.constraints[0].y);
-        // convert the point to the camera's coordinate system
-        p0 = scan_head->GetConfiguration().Alignment(0).MillToCamera(x, y);
-        // calculate the second point of out window constraint
-        x = static_cast<int32_t>(constraint.constraints[1].x);
-        y = static_cast<int32_t>(constraint.constraints[1].y);
-        // convert the point to the camera's coordinate system
-        p1 = scan_head->GetConfiguration().Alignment(0).MillToCamera(x, y);
-        // pass constraint points to message to create the constraint
-        if (scan_head->GetConfiguration().Alignment(0).GetFlipX()) {
-          msg0.AddConstraint(p1.x, p1.y, p0.x, p0.y);
-        } else {
-          msg0.AddConstraint(p0.x, p0.y, p1.x, p1.y);
-        }
-      }
-      // send the constraint message to the scan server
-      sender.Send(msg0.Serialize(), ip_addr);
+      const int number_of_cameras = sh->GetNumberCameras();
 
-      // camera 1 window constraint configuration
-      auto msg1 = SetWindowMessage(1);
-      for (auto const &constraint : constraints) {
-        Point2D<int32_t> p0, p1;
-        int32_t x, y;
-        // note, units are in 1/1000 inch
-        // calculate the first point of our window constraint
-        x = static_cast<int32_t>(constraint.constraints[0].x);
-        y = static_cast<int32_t>(constraint.constraints[0].y);
-        // convert the point to the camera's coordinate system
-        p0 = scan_head->GetConfiguration().Alignment(1).MillToCamera(x, y);
-        // calculate the second point of out window constraint
-        x = static_cast<int32_t>(constraint.constraints[1].x);
-        y = static_cast<int32_t>(constraint.constraints[1].y);
-        // convert the point to the camera's coordinate system
-        p1 = scan_head->GetConfiguration().Alignment(1).MillToCamera(x, y);
-        // pass constraint points to message to create the constraint
-        if (scan_head->GetConfiguration().Alignment(1).GetFlipX()) {
-          msg1.AddConstraint(p1.x, p1.y, p0.x, p0.y);
-        } else {
-          msg1.AddConstraint(p0.x, p0.y, p1.x, p1.y);
+      for (int n = JS_CAMERA_A; n < number_of_cameras; n++) {
+        auto msg = SetWindowMessage(n);
+        for (auto const &constraint : constraints) {
+          Point2D<int32_t> p0, p1;
+          int32_t x, y;
+          auto a = sh->GetAlignment(static_cast<jsCamera>(n));
+          // Note: units are in 1/1000 inch
+          // calculate the first point of our window constraint
+          x = static_cast<int32_t>(constraint.constraints[0].x);
+          y = static_cast<int32_t>(constraint.constraints[0].y);
+          // convert the point to the camera's coordinate system
+          p0 = a.MillToCamera(x, y);
+          // calculate the second point of out window constraint
+          x = static_cast<int32_t>(constraint.constraints[1].x);
+          y = static_cast<int32_t>(constraint.constraints[1].y);
+          // convert the point to the camera's coordinate system
+          p1 = a.MillToCamera(x, y);
+          // pass constraint points to message to create the constraint
+          if (a.GetFlipX()) {
+            msg.AddConstraint(p0.x, p0.y, p1.x, p1.y);
+          } else {
+            msg.AddConstraint(p1.x, p1.y, p0.x, p0.y);
+          }
         }
+        // send the constraint message to the scan server
+        sender.Send(msg.Serialize(), ip_addr);
       }
-      // send the constraint message to the scan server
-      sender.Send(msg1.Serialize(), ip_addr);
     }
 
-    // allow enough time for the scan heads to fully configure
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    // slight delay for window messages to propogate
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    // clear out all status messages
+    for (auto const &pair : scanners_by_serial) {
+      ScanHead *sh = pair.second;
+      sh->ClearStatusMessage();
+    }
+
+    // wait until we get new status messages for each scan head so we can get
+    // an accurate max scan rate
+    for (auto const &pair : scanners_by_serial) {
+      ScanHead *sh = pair.second;
+      StatusMessage msg = sh->GetStatusMessage();
+      uint64_t timestamp_old = msg.GetGlobalTime();
+      uint64_t timestamp_new = timestamp_old;
+
+      while (timestamp_new == timestamp_old) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        msg = sh->GetStatusMessage();
+        timestamp_new = msg.GetGlobalTime();
+      }
+    }
   }
 
   return connected;
@@ -278,12 +249,10 @@ void ScanManager::Disconnect()
 
   auto message = DisconnectMessage().Serialize();
   for (auto const &pair : scanners_by_serial) {
-    std::string serial = pair.first;
     ScanHead *scan_head = pair.second;
-    ScanHeadReceiver *receiver = receivers_by_serial[serial];
 
     sender.Send(message, scan_head->GetIpAddress());
-    receiver->Stop();
+    scan_head->ReceiveStop();
   }
   sender.Stop();
 
@@ -291,7 +260,6 @@ void ScanManager::Disconnect()
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   for (auto const &pair : scanners_by_serial) {
-    std::string serial = pair.first;
     ScanHead *scan_head = pair.second;
     scan_head->ClearStatusMessage();
   }
@@ -318,19 +286,19 @@ void ScanManager::StartScanning()
   requests.reserve(scanners_by_serial.size());
 
   for (auto const &pair : scanners_by_serial) {
-    const uint32_t interval = static_cast<uint32_t>(scan_interval_us);
-    std::string serial = pair.first;
     ScanHead *scan_head = pair.second;
-    ScanHeadReceiver *receiver = receivers_by_serial[serial];
 
-    scan_head->Flush();
-    receiver->Start();
+    scan_head->FlushProfiles();
+    scan_head->ReceiveStart();
 
-    ScanRequest request(scan_head->GetDataFormat(), 0, receiver->GetPort(),
-                        scan_head->GetId(),
-                        static_cast<uint32_t>(ceil(interval)),
-                        0xFFFFFFFF, // uint32_t max
-                        scan_head->GetConfiguration());
+    auto fmt = scan_head->GetDataFormat();
+    auto port = scan_head->GetReceivePort();
+    auto id = scan_head->GetId();
+    uint32_t interval = static_cast<uint32_t>(scan_interval_us);
+    uint32_t count = 0xFFFFFFFF;
+    auto config = scan_head->GetConfiguration();
+
+    ScanRequest request(fmt, 0, port, id, interval, count, config);
 
     auto ip_addr_and_request =
       std::make_pair(scan_head->GetIpAddress(), request.Serialize(session_id));
@@ -363,19 +331,20 @@ void ScanManager::StartScanning(ScanHead *scan_head)
     throw std::runtime_error(error_msg);
   }
 
-  ScanHeadReceiver *receiver =
-    receivers_by_serial[scan_head->GetSerialNumber()];
   std::vector<std::pair<uint32_t, Datagram>> requests;
   requests.reserve(1);
 
-  scan_head->Flush();
-  receiver->Start();
+  scan_head->FlushProfiles();
+  scan_head->ReceiveStart();
 
-  const uint32_t interval = static_cast<uint32_t>(scan_interval_us);
-  ScanRequest request(scan_head->GetDataFormat(), 0, receiver->GetPort(),
-                      scan_head->GetId(), interval,
-                      0xFFFFFFFF, // uint32_t max
-                      scan_head->GetConfiguration());
+  auto fmt = scan_head->GetDataFormat();
+  auto port = scan_head->GetReceivePort();
+  auto id = scan_head->GetId();
+  uint32_t interval = static_cast<uint32_t>(scan_interval_us);
+  uint32_t count = 0xFFFFFFFF;
+  auto config = scan_head->GetConfiguration();
+
+  ScanRequest request(fmt, 0, port, id, interval, count, config);
 
   requests.push_back(
     std::make_pair(scan_head->GetIpAddress(), request.Serialize(session_id)));
@@ -435,10 +404,10 @@ double ScanManager::GetMaxScanRate()
 
     // determine what the greatest maximum exposure is for all of the scan
     // heads; we need this to determine the maximum scan rate of our system
-    ScanHeadConfiguration config = scan_head->GetConfiguration();
+    auto config = scan_head->GetConfiguration();
 
     double laser_on_max_freq =
-      1000000.0 / static_cast<double>(config.GetMaxLaserOn());
+      1000000.0 / static_cast<double>(config.laser_on_time_max_us);
     if (laser_on_max_freq < max_rate) {
       max_rate = laser_on_max_freq;
     }
@@ -467,10 +436,9 @@ void ScanManager::FillVersionInformation(VersionInformation &vi)
   vi.commit = std::stoul(VERSION_COMMIT, nullptr, 16);
 }
 
-std::map<std::string, ScanHead *> ScanManager::BroadcastConnect(
-  uint32_t timeout_s)
+std::map<uint32_t, ScanHead *> ScanManager::BroadcastConnect(uint32_t timeout_s)
 {
-  std::map<std::string, ScanHead *> connected;
+  std::map<uint32_t, ScanHead *> connected;
   std::vector<net_iface> ifaces;
 
   /////////////////////////////////////////////////////////////////////////////
@@ -506,11 +474,11 @@ std::map<std::string, ScanHead *> ScanManager::BroadcastConnect(
         // spam each network interface with our connection message
         for (auto const &iface : ifaces) {
           for (auto const &pair : scanners_by_serial) {
-            std::string serial = pair.first;
+            uint32_t serial = pair.first;
             ScanHead *scan_head = pair.second;
             uint32_t scan_id = scan_head->GetId();
             uint32_t ip_addr = iface.ip_addr;
-            uint16_t port = receivers_by_serial[serial]->GetPort();
+            uint16_t port = scan_head->GetReceivePort();
 
             // skip sending message to scan heads that are already connected
             if (connected.find(serial) != connected.end()) {
@@ -518,9 +486,9 @@ std::map<std::string, ScanHead *> ScanManager::BroadcastConnect(
             }
 
             // we want the scan head to connect to the client with these params
-            auto bytes = BroadcastConnectMessage(ip_addr, port, session_id,
-                                                 scan_id, std::stoul(serial))
-                           .Serialize();
+            auto msg = BroadcastConnectMessage(ip_addr, port, session_id,
+                                               scan_id, serial);
+            auto bytes = msg.Serialize();
 
             SOCKET sock = iface.sockfd;
             const char *src = reinterpret_cast<const char *>(bytes.data());
@@ -539,6 +507,8 @@ std::map<std::string, ScanHead *> ScanManager::BroadcastConnect(
               // failed to send data to interface
               break;
             }
+
+            scan_head->ClearStatusMessage();
           }
         }
 
@@ -553,13 +523,13 @@ std::map<std::string, ScanHead *> ScanManager::BroadcastConnect(
       // STEP 3: See which (if any) scan heads responded.
       /////////////////////////////////////////////////////////////////////////
       for (auto const &pair : scanners_by_serial) {
-        std::string serial = pair.first;
+        uint32_t serial = pair.first;
         ScanHead *scan_head = pair.second;
         StatusMessage msg = scan_head->GetStatusMessage();
         uint64_t timestamp = 0;
 
         // get timestamp where status message was received
-        timestamp = scan_head->GetScanHeadShared().GetStatusMessageTimestamp();
+        timestamp = scan_head->GetStatusMessage().GetGlobalTime();
 
         if ((connected.end() == connected.find(serial)) &&
             (timestamp > time_start)) {
@@ -574,7 +544,6 @@ std::map<std::string, ScanHead *> ScanManager::BroadcastConnect(
           }
 
           // found an active scan head!
-          scan_head->SetIpAddress(msg.GetScanHeadIp());
           connected[serial] = scan_head;
         }
       }

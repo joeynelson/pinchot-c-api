@@ -34,12 +34,11 @@ Profile::Profile(DataType mask)
   }
 
   if ((mask & DataType::Brightness) || (mask & DataType::XYData)) {
-    data.resize(kMaxColumns,
-                {
-                  JS_PROFILE_DATA_INVALID_XY,         // x
-                  JS_PROFILE_DATA_INVALID_XY,         // y
-                  JS_PROFILE_DATA_INVALID_BRIGHTNESS, // brightness
-                });
+    data.fill({
+      JS_PROFILE_DATA_INVALID_XY,         // x
+      JS_PROFILE_DATA_INVALID_XY,         // y
+      JS_PROFILE_DATA_INVALID_BRIGHTNESS, // brightness
+    });
     // this is a small optimization, cache the value to avoid repeated calls
     // to std::vector size() function
     data_size = static_cast<uint32_t>(data.size());
@@ -162,7 +161,7 @@ uint32_t Profile::GetLaserOnTime() const
   return laser_on_time;
 }
 
-std::vector<jsProfileData> Profile::Data() const
+std::array<jsProfileData, JS_PROFILE_DATA_LEN>& Profile::Data()
 {
   return data;
 }

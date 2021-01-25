@@ -20,6 +20,32 @@
 #include <iostream>
 #include "joescan_pinchot.h"
 
+void print_type_and_capabilities(jsScanHeadType t, jsScanHeadCapabilities &c)
+{
+  switch (t) {
+  case (JS_SCAN_HEAD_JS50WX):
+    std::cout << "JS-50WX" << std::endl;
+    break;
+  case (JS_SCAN_HEAD_JS50SC):
+    std::cout << "JS-50SC" << std::endl;
+    break;
+  default:
+    std::cout << "INVALID" << std::endl;
+    return;
+  }
+
+  std::cout << "\tcamera_brightness_bit_depth=" <<
+    c.camera_brightness_bit_depth << std::endl;
+  std::cout << "\tmax_camera_image_height=" << c.max_camera_image_height <<
+    std::endl;
+  std::cout << "\tmax_camera_image_width=" << c.max_camera_image_width <<
+    std::endl;
+  std::cout << "\tmax_scan_rate=" << c.max_scan_rate << std::endl;
+  std::cout << "\tnum_cameras=" << c.num_cameras << std::endl;
+  std::cout << "\tnum_encoders=" << c.num_encoders << std::endl;
+  std::cout << "\tnum_lasers=" << c.num_lasers << std::endl;
+}
+
 /**
  * @brief Prints the contents of a `jsScanHeadStatus` data type to standard out.
  *
@@ -170,6 +196,19 @@ int main(int argc, char *argv[])
     if (jsScanSystemGetNumberScanHeads(scan_system) != r) {
       throw std::runtime_error("failed to connect");
     }
+
+    jsScanHeadType type = jsScanHeadGetType(scan_head);
+    if (JS_SCAN_HEAD_INVALID_TYPE == type) {
+      throw std::runtime_error("invalid type");
+    }
+
+    jsScanHeadCapabilities cap;
+    r = jsGetScanHeadCapabilities(type, &cap);
+    if (0 > r) {
+      throw std::runtime_error("failed to get capabilities");
+    }
+
+    print_type_and_capabilities(type, cap);
 
     // Now that we are connected, we can query the scan head to get it's
     // current status. Note that the status will be updated periodically by the

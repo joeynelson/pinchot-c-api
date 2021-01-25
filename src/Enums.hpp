@@ -25,8 +25,6 @@ BETTER_ENUM(
   // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   StartScanning = 2, Status = 3, SetWindow = 4, GetMappleTable = 5,
   Disconnect = 6, BroadcastConnect = 7)
-
-BETTER_ENUM(CameraExposureMode, uint8_t, Interleaved = 0, Simultaneous = 1)
 } // namespace joescan
 
 #endif

@@ -31,8 +31,8 @@ DataPacket::DataPacket(uint8_t *bytes, uint32_t num_bytes,
 
   received = received_timestamp;
   scan_head = bytes[4];
-  camera = (0 == bytes[5]) ? JS_CAMERA_0
-                           : (1 == bytes[5]) ? JS_CAMERA_1 : JS_CAMERA_MAX;
+  camera = (0 == bytes[5]) ? JS_CAMERA_A
+                           : (1 == bytes[5]) ? JS_CAMERA_B : JS_CAMERA_MAX;
   laser = (0 == bytes[6]) ? JS_LASER_0 : JS_LASER_MAX;
   exposure_time = ntohs(*(reinterpret_cast<uint16_t *>(&bytes[2])));
   timestamp =

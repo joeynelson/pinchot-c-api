@@ -47,11 +47,20 @@ class ScanWindow {
    *
    * @return Vector of constraints expressed in 1/1000 inches.
    */
-  std::vector<WindowConstraint> Constraints() const;
+  std::vector<WindowConstraint> GetConstraints() const;
+
+  double GetTop() const;
+  double GetBottom() const;
+  double GetLeft() const;
+  double GetRight() const;
 
  private:
   /// Vector of constraints in 1/1000 inches.
-  std::vector<WindowConstraint> constraints;
+  std::vector<WindowConstraint> m_constraints;
+  double m_top;
+  double m_bottom;
+  double m_left;
+  double m_right;
 };
 } // namespace joescan
 

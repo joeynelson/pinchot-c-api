@@ -61,8 +61,9 @@ class AlignmentParams {
    * coordinate system origin.
    *
    * @param roll The rotation to be applied.
+   * @param flip_x Set to `true` to rotate the coordinate system by 180
    */
-  void SetRoll(double roll);
+  void SetRoll(double roll, bool flip_x = false);
 
   /**
    * For XY profile data, apply the specified shift to X when converting

@@ -8,67 +8,43 @@
 #ifndef JOESCAN_SCAN_HEAD_H
 #define JOESCAN_SCAN_HEAD_H
 
-#include "ScanHeadConfiguration.hpp"
-#include "ScanHeadShared.hpp"
+#include "ScanHeadTemperatures.hpp"
 #include "ScanManager.hpp"
+#include "ScanWindow.hpp"
 
 #include "boost/circular_buffer.hpp"
-
 #include "joescan_pinchot.h"
 
 #include <string>
 #include <vector>
 
 namespace joescan {
-struct ScanHeadTemperatures {
-  double camera_temp_c[JS_CAMERA_MAX];
-  double mainboard_temp_c;
-  double mainboard_humidity;
-};
 
 class ScanHead {
  public:
   /**
    * Initializes a `ScanHead` object.
    *
-   * @param shared A reference to shared data used by the scan head.
+   * @param manager Reference to scan manager.
+   * @param serial_number The serial number of the scan head to create.
+   * @param id The unique identifier to associate with the scan head.
    */
-  ScanHead(ScanManager &manager, ScanHeadShared &shared);
+  ScanHead(ScanManager &manager, uint32_t serial_number, uint32_t id);
+  ~ScanHead();
 
   /**
-   * Gets the scan manager that owns this scan head.
+   * Gets the scan head product type.
    *
-   * @return Reference to `ScanManager` object.
+   * @return Enum value representing scan head type.
    */
-  ScanManager &GetScanManager();
-
-  /**
-   * Gets the shared data owned by the `ScanHead` and `ScanHeadReceiver`.
-   *
-   * @return Reference to `ScanHeadShared` object.
-   */
-  ScanHeadShared &GetScanHeadShared();
-
-  /**
-   * Configures a scan head according to the specified parameters.
-   *
-   * @param config A reference to the configuration parameters.
-   */
-  void Configure(ScanHeadConfiguration &config);
-
-  /**
-   * Gets the current configuration of the scan head.
-   *
-   * @return The configuration of the scan head.
-   */
-  ScanHeadConfiguration GetConfiguration() const;
+  jsScanHeadType GetProductType() const;
 
   /**
    * Gets the serial number of the scan head.
    *
    * @return String representation of the serial number.
    */
-  std::string GetSerialNumber() const;
+  uint32_t GetSerialNumber() const;
 
   /**
    * Gets the ID of the scan head.
@@ -76,6 +52,13 @@ class ScanHead {
    * @return Numeric ID of the scan head.
    */
   uint32_t GetId() const;
+
+  /**
+   * Gets the number of cameras available on the scan head.
+   *
+   * @return Number of valid cameras on the scan head.
+   */
+  uint32_t GetNumberCameras();
 
   /** Gets the binary representation of the IP address of the scan head.
    * Note, this can be converted to a string representation by using the
@@ -86,19 +69,22 @@ class ScanHead {
   uint32_t GetIpAddress() const;
 
   /**
-   * Sets the binary representation of the IP address of the scan head.
+   * Gets the port used to receive UDP data from the scan head.
    *
-   * @param addr The IP address to set.
+   * @return The port number.
    */
-  void SetIpAddress(uint32_t addr);
+  int GetReceivePort() const;
 
   /**
-   * Performs a validation of the scan head's configuration to ensure there
-   * are no conflicts. Note, this function is not currently implemented.
-   *
-   * @return Boolean `true` if configuration is valid, `false` otherwise.
+   * Causes the receive port to become active and begin listening for UDP
+   * messages from the scan head.
    */
-  bool ValidateConfig() const;
+  void ReceiveStart();
+
+  /**
+   * Stops receiving UDP messages from the receive port.
+   */
+  void ReceiveStop();
 
   /**
    * Returns the number of profiles that are available to be read from calling
@@ -123,10 +109,15 @@ class ScanHead {
    * head is less than what is requested, only the actual number of profiles
    * available will be returned in the vector.
    *
-   * @param max The maximum number of profiles to return.
+   * @param count The maximum number of profiles to return.
    * @return Vector holding references to profile data.
    */
-  std::vector<std::shared_ptr<Profile>> GetProfiles(int max);
+  std::vector<std::shared_ptr<Profile>> GetProfiles(uint32_t count);
+
+  /**
+   * Flushes all profiles from the internal buffer
+   */
+  void FlushProfiles();
 
   /**
    * Obtains the last reported status message from a scan head. Note, status
@@ -134,12 +125,47 @@ class ScanHead {
    *
    * @return The last reported status message.
    */
-  StatusMessage GetStatusMessage() const;
+  StatusMessage GetStatusMessage();
 
   /**
    * Clears out the last reported status message from a scan head.
    */
   void ClearStatusMessage();
+
+  /**
+   * Gets the scan manager that owns this scan head.
+   *
+   * @return Reference to `ScanManager` object.
+   */
+  ScanManager &GetScanManager();
+
+  /**
+   * Sets the alignment settings for the scan head.
+   *
+   * @param alignment The alignment settings.
+   */
+  void SetAlignment(jsCamera camera, AlignmentParams &alignment);
+
+  /**
+   * Gets the alignment settings for the scan head.
+   *
+   * @return The alignment settings.
+   */
+  AlignmentParams &GetAlignment(jsCamera camera);
+
+  /**
+   * Configures a scan head according to the specified parameters.
+   *
+   * @param config A reference to the configuration parameters.
+   */
+  void SetConfiguration(jsScanHeadConfiguration &cfg);
+
+  /**
+   * Gets the current configuration of the scan head.
+   *
+   * @return The configuration of the scan head.
+   */
+  jsScanHeadConfiguration GetConfiguration() const;
 
   /**
    * Sets the format of the data being presented to the end user
@@ -155,21 +181,81 @@ class ScanHead {
    */
   jsDataFormat GetDataFormat() const;
 
+  /**
+   * Gets the temperature readings for the scan head.
+   *
+   * @return Temperature readings.
+   */
   ScanHeadTemperatures GetTemperatures();
 
   /**
-   * Flushes all profiles from the internal buffer
+   * Sets the window to be used for scanning with the scan head.
+   *
+   * @param window The scan window.
    */
-  void Flush();
+  void SetWindow(ScanWindow &window);
+
+  /**
+   * Gets the currently configured scan window.
+   *
+   * @return The scan window.
+   */
+  ScanWindow &GetWindow();
 
  private:
+  static const int kMaxCircularBufferSize = JS_SCAN_HEAD_PROFILES_MAX;
+  // The JS-50 theoretical max packet size is 8k plus header, in reality the
+  // max size is 1456 * 4 + header. Using 6k.
+  static const int kMaxPacketSize = 6144;
+  // JS-50 in image mode will have 4 rows of 1456 pixels for each packet.
+  static const int kImageDataSize = 4 * 1456;
+  // Port used to access REST interface
   static const uint32_t kRESTport = 8080;
-  ScanManager &scan_manager;
-  ScanHeadShared &shared;
-  jsDataFormat data_format;
 
-  uint32_t ip_address;
-  std::string ip_address_str;
+  static const uint32_t kMaxAverageIntensity = 255;
+  static const uint32_t kMaxSaturationPercentage = 100;
+  static const uint32_t kMaxSaturationThreshold = 1023;
+  static const uint32_t kMaxLaserDetectionThreshold = 1023;
+  static const uint32_t kMinLaserOnTimeUsec = 15;
+  static const uint32_t kMaxLaserOnTimeUsec = 650000;
+  static const uint32_t kMinCameraExposureUsec = 15;
+  static const uint32_t kMaxCameraExposureUsec = 2000000;
+
+  void PushProfile(std::shared_ptr<Profile> profile);
+  void PushStatus(StatusMessage status);
+  void ProcessPacket(DataPacket &packet);
+  void ReceiveMain();
+
+  ScanManager &m_scan_manager;
+  AlignmentParams m_alignment[JS_CAMERA_MAX];
+  ScanWindow m_window;
+  StatusMessage m_status;
+  jsScanHeadConfiguration m_config;
+  jsDataFormat m_format;
+  jsScanHeadType m_product_type;
+
+  boost::circular_buffer<std::shared_ptr<Profile>> m_circ_buffer;
+  std::shared_ptr<Profile> m_profile_ptr;
+  std::condition_variable m_thread_sync;
+  std::mutex m_mutex;
+  std::thread m_receiver;
+
+  uint32_t m_serial_number;
+  uint32_t m_ip_address;
+  uint32_t m_id;
+  SOCKET m_fd;
+  int m_port;
+  int32_t m_active_count;
+  uint8_t *m_packet_buf;
+  uint32_t m_packet_buf_len;
+  uint64_t m_packets_received;
+  uint32_t m_packets_received_for_profile;
+  uint64_t m_complete_profiles_received;
+  uint64_t m_expected_packets_received;
+  uint64_t m_expected_profiles_received;
+  uint32_t m_last_profile_source;
+  uint64_t m_last_profile_timestamp;
+  bool m_is_data_available_condition_enabled;
 };
 } // namespace joescan
 

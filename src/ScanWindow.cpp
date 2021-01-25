@@ -11,6 +11,7 @@
 using namespace joescan;
 
 ScanWindow::ScanWindow(double top, double bottom, double left, double right)
+  : m_top(top), m_bottom(bottom), m_left(left), m_right(right)
 {
   if (top <= bottom) {
     throw std::range_error("window top must be greater than window bottom");
@@ -26,22 +27,43 @@ ScanWindow::ScanWindow(double top, double bottom, double left, double right)
   int32_t left1000 = static_cast<int32_t>(left * 1000.0);
   int32_t right1000 = static_cast<int32_t>(right * 1000.0);
 
-  constraints.push_back(WindowConstraint(Point2D<int64_t>(left1000, top1000),
-                                         Point2D<int64_t>(right1000, top1000)));
+  m_constraints.push_back(WindowConstraint(
+    Point2D<int64_t>(left1000, top1000), Point2D<int64_t>(right1000, top1000)));
 
-  constraints.push_back(
+  m_constraints.push_back(
     WindowConstraint(Point2D<int64_t>(right1000, bottom1000),
                      Point2D<int64_t>(left1000, bottom1000)));
 
-  constraints.push_back(
+  m_constraints.push_back(
     WindowConstraint(Point2D<int64_t>(right1000, top1000),
                      Point2D<int64_t>(right1000, bottom1000)));
 
-  constraints.push_back(WindowConstraint(Point2D<int64_t>(left1000, bottom1000),
-                                         Point2D<int64_t>(left1000, top1000)));
+  m_constraints.push_back(
+    WindowConstraint(Point2D<int64_t>(left1000, bottom1000),
+                     Point2D<int64_t>(left1000, top1000)));
 }
 
-std::vector<WindowConstraint> ScanWindow::Constraints() const
+std::vector<WindowConstraint> ScanWindow::GetConstraints() const
 {
-  return constraints;
+  return m_constraints;
+}
+
+double ScanWindow::GetTop() const
+{
+  return m_top;
+}
+
+double ScanWindow::GetBottom() const
+{
+  return m_bottom;
+}
+
+double ScanWindow::GetLeft() const
+{
+  return m_left;
+}
+
+double ScanWindow::GetRight() const
+{
+  return m_right;
 }

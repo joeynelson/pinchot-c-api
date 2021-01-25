@@ -8,6 +8,7 @@
 #ifndef JOESCAN_PROFILE_H
 #define JOESCAN_PROFILE_H
 
+#include <array>
 #include <memory>
 #include <vector>
 
@@ -203,7 +204,7 @@ class Profile {
    *
    * @return Vector of point data for given profile.
    */
-  std::vector<jsProfileData> Data() const;
+  std::array<jsProfileData, JS_PROFILE_DATA_LEN>& Data();
 
   /**
    * For image mode, obtains all of the pixel data for a given profile.
@@ -234,7 +235,7 @@ class Profile {
   std::vector<int64_t> encoder_vals;
   uint32_t exposure_time;
   uint32_t laser_on_time;
-  std::vector<jsProfileData> data;
+  std::array<jsProfileData, JS_PROFILE_DATA_LEN> data;
   std::vector<uint8_t> image;
   uint32_t data_size;
   uint32_t image_size;

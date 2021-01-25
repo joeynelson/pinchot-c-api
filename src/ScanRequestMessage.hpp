@@ -13,7 +13,6 @@
 
 #include "Enums.hpp"
 #include "NetworkTypes.hpp"
-#include "ScanHeadConfiguration.hpp"
 #include "joescan_pinchot.h"
 
 namespace joescan {
@@ -22,7 +21,7 @@ class ScanRequest {
  public:
   ScanRequest(jsDataFormat format, uint32_t clientAddress, int clientPort,
               int scanHeadId, uint32_t interval, uint32_t scanCount,
-              const ScanHeadConfiguration &config);
+              const jsScanHeadConfiguration &config);
   ScanRequest(const Datagram &datagram);
   ScanRequest() = default;
   ~ScanRequest() = default;
@@ -63,7 +62,6 @@ class ScanRequest {
   inline uint16_t GetStartColumn() const;
   inline uint16_t GetEndColumn() const;
   inline const std::vector<uint16_t> &GetStepValues() const;
-  inline CameraExposureMode GetExposureMode() const;
 
   void SetDataTypesAndSteps(DataType types, std::vector<uint16_t> steps);
   void SetLaserExposure(uint32_t min, uint32_t def, uint32_t max);
@@ -79,7 +77,9 @@ class ScanRequest {
   uint8_t scanHeadId;
   uint8_t cameraId;
   uint8_t laserId;
-  CameraExposureMode exposureMode = CameraExposureMode::Interleaved;
+
+  // deprecated exposure setting, interleaved or simultaneous
+  uint8_t DEPRECATED_DO_NOT_USE;
 
   // Laser exposure, 3 * 4 bytes
   uint32_t minimumLaserExposure;
@@ -92,31 +92,37 @@ class ScanRequest {
   uint32_t maximumCameraExposure;
 
   // Autoexposure pixel and percentage controls, 4 * 4 bytes
-  uint32_t
-    laserDetectionThreshold; // Minimum brightness value a pixel must reach for
-                             // the FPGA to register it as the laser peak
-  uint32_t
-    saturationThreshold; // Minimum brightness value a pixel must reach for the
-                         // FPGA to consider the pixel fully saturated
-  uint32_t
-    saturationPercent; // Target % of fully saturated pixels within the scan
-                       // window that the scan autoexposure attempts to reach
-  uint32_t averageImageIntensity; // Average pixel brightness target that the
-                                  // image autoexposure attempts to reach
+  // Minimum brightness value a pixel must reach for the FPGA to register it as
+  // the laser peak
+  uint32_t laserDetectionThreshold;
+
+  // Minimum brightness value a pixel must reach for the FPGA to consider the
+  // pixel fully saturated
+  uint32_t saturationThreshold;
+
+  // Target % of fully saturated pixels within the scan window that the scan
+  // autoexposure attempts to reach
+  uint32_t saturationPercent;
+
+  // Average pixel brightness target that the image autoexposure attempts to
+  // reach
+  uint32_t averageImageIntensity;
 
   // Scan start/duration (server/FPGA will determine the next actual viable
   // start time from the interval), 3 * 4 bytes
-  uint32_t
-    scanInterval; // Interval (in usec?  nsec?) between the start of each scan
-  uint32_t scanOffset; // Offset (in usec?  nsec?) from the start of the natural
-                       // scan interval boundary that this device operates
-                       // (i.e., the trigger phase offset time)
-  uint32_t
-    numberOfScans; // Total number of scans/images to collect for this command
+  // Interval (in usec?  nsec?) between the start of each scan
+  uint32_t scanInterval;
+  // Offset (in usec?  nsec?) from the start of the natural scan interval
+  // boundary that this device operates (i.e., the trigger phase offset time)
+  uint32_t scanOffset;
+  // Total number of scans/images to collect for this command
+  uint32_t numberOfScans;
 
   // Data routing, 4 + 2 bytes
-  uint32_t clientAddress; // IP address of client PC
-  uint16_t clientPort; // Port on which the client is listening for data packets
+  // IP address of client PC
+  uint32_t clientAddress;
+  // Port on which the client is listening for data packets
+  uint16_t clientPort;
 
   // Multiple scan request packets may be generated during one start/stop scan
   // pair from the API.  All scan requests related to the same API-level scan
@@ -126,14 +132,19 @@ class ScanRequest {
   // unambiguously know to treat the last request as the start of something new.
 
   // Misc stuff, 2 * 1 bytes
-  uint8_t flags;           // Currently unused
-  uint8_t requestSequence; // Used to indicate that this request is/isn't
-                           // connected with prior/subsequent scans
+  // Currently unused
+  uint8_t flags;
+  // Used to indicate that this request is/isn't connected with
+  // prior/subsequent scans
+  uint8_t requestSequence;
 
   // Data format, (3 + # of types) * 2 bytes
-  uint16_t dataTypes; // Bitmask of requested data return values
-  uint16_t startCol;  // First camera column to return data from
-  uint16_t endCol;    // Last camera column to return data from
+  // Bitmask of requested data return values
+  uint16_t dataTypes;
+  // First camera column to return data from
+  uint16_t startCol;
+  // Last camera column to return data from
+  uint16_t endCol;
 
   // The step values are ordered by the profile data type, with lowest-value
   // type's skip first, increasing.  So for example, if a request has brightness
@@ -273,11 +284,6 @@ inline uint16_t ScanRequest::GetEndColumn() const
 inline const std::vector<uint16_t> &ScanRequest::GetStepValues() const
 {
   return steps;
-}
-
-inline CameraExposureMode ScanRequest::GetExposureMode() const
-{
-  return exposureMode;
 }
 
 } // namespace joescan

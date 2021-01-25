@@ -16,7 +16,7 @@ using namespace joescan;
 ScanRequest::ScanRequest(jsDataFormat format, uint32_t clientAddress,
                          int clientPort, int scanHeadId, uint32_t interval,
                          uint32_t scanCount,
-                         const ScanHeadConfiguration &config)
+                         const jsScanHeadConfiguration &config)
 {
   this->clientAddress = clientAddress;
   this->clientPort = clientPort;
@@ -24,18 +24,19 @@ ScanRequest::ScanRequest(jsDataFormat format, uint32_t clientAddress,
   this->cameraId = 0; // TODO: If these become useful, don't hardcode.
   this->laserId = 0;  // TODO: If these become useful, don't hardcode.
   this->flags = 0;    // TODO: If these become useful, don't hardcode.
-  minimumLaserExposure = config.GetMinLaserOn();
-  defaultLaserExposure = config.GetDefaultLaserOn();
-  maximumLaserExposure = config.GetMaxLaserOn();
-  minimumCameraExposure = config.GetMinExposure();
-  defaultCameraExposure = config.GetDefaultExposure();
-  maximumCameraExposure = config.GetMaxExposure();
-  laserDetectionThreshold = config.GetLaserDetectionThreshold();
-  saturationThreshold = config.GetSaturationThreshold();
-  saturationPercent = config.GetSaturatedPercentage();
-  averageImageIntensity = config.GetAverageIntensity();
+  minimumLaserExposure = config.laser_on_time_min_us;
+  defaultLaserExposure = config.laser_on_time_def_us;
+  maximumLaserExposure = config.laser_on_time_max_us;
+  minimumCameraExposure = config.camera_exposure_time_min_us;
+  defaultCameraExposure = config.camera_exposure_time_def_us;
+  maximumCameraExposure = config.camera_exposure_time_max_us;
+  laserDetectionThreshold = config.laser_detection_threshold;
+  saturationThreshold = config.saturation_threshold;
+  saturationPercent = config.saturation_percentage;
+  // TODO: what to do with this?
+  averageImageIntensity = 50;
   scanInterval = interval;
-  scanOffset = static_cast<uint32_t>(config.GetScanOffset());
+  scanOffset = config.scan_offset_us;
   // If the caller requested a specific number of scans, obey them, otherwise
   // let's hope they didn't mean to scan for a whole week.
   numberOfScans = (scanCount == 0) ? 1000000 : scanCount;
@@ -73,7 +74,7 @@ ScanRequest::ScanRequest(const Datagram &datagram)
   scanHeadId = datagram[index++];
   cameraId = datagram[index++];
   laserId = datagram[index++];
-  exposureMode = CameraExposureMode::_from_integral(datagram[index++]);
+  DEPRECATED_DO_NOT_USE = datagram[index++];
   flags = datagram[index++];
 
   minimumLaserExposure =
@@ -165,7 +166,8 @@ Datagram ScanRequest::Serialize(uint8_t requestSequence)
   scanRequestPacket.push_back(cameraId);
   // TODO: This also isn't needed now.
   scanRequestPacket.push_back(laserId);
-  scanRequestPacket.push_back(exposureMode);
+  // deprecated exposure setting
+  scanRequestPacket.push_back(DEPRECATED_DO_NOT_USE);
   scanRequestPacket.push_back(flags);
   index += 6;
 
@@ -240,7 +242,7 @@ bool ScanRequest::operator==(const ScanRequest &other) const
   bool same = true;
   if (magic != other.magic || requestType != other.requestType ||
       scanHeadId != other.scanHeadId || cameraId != other.cameraId ||
-      laserId != other.laserId || exposureMode != other.exposureMode ||
+      laserId != other.laserId ||
       minimumLaserExposure != other.minimumLaserExposure ||
       defaultLaserExposure != other.defaultLaserExposure ||
       maximumLaserExposure != other.maximumLaserExposure ||

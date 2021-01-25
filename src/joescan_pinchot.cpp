@@ -8,6 +8,7 @@
 #include "joescan_pinchot.h"
 #include "NetworkInterface.hpp"
 #include "PinchotConstants.hpp"
+#include "ProductInfo.hpp"
 #include "ScanHead.hpp"
 #include "ScanManager.hpp"
 #include "VersionCompatibilityException.hpp"
@@ -17,16 +18,6 @@
 #include <chrono>
 #include <cmath>
 #include <string>
-
-// TODO: This should probably be placed in a header?
-// Note, we add one to each enumerated value to convert from value to the total
-// number of the type supported.
-#define JS50WX_CAMERA_BRIGHTNESS_BIT_DEPTH (8)
-#define JS50WX_NUM_CAMERAS (JS_CAMERA_1 + 1)
-#define JS50WX_NUM_LASERS (JS_LASER_0 + 1)
-#define JS50WX_NUM_ENCODERS (JS_ENCODER_2 + 1)
-#define JS50WX_MAX_CAMERA_HEIGHT (1088)
-#define JS50WX_MAX_CAMERA_WIDTH (1456)
 
 #define INVALID_DOUBLE(d) (std::isinf((d)) || std::isnan((d)))
 
@@ -126,27 +117,7 @@ int32_t jsGetScanHeadCapabilities(jsScanHeadType type,
     return JS_ERROR_NULL_ARGUMENT;
   }
 
-  switch (type) {
-    case (JS_SCAN_HEAD_JS50WX):
-      // Remove this in the future when a new product is introduced.
-      static_assert(
-        (JS50WX_MAX_CAMERA_HEIGHT == JS_CAMERA_IMAGE_DATA_MAX_HEIGHT) &&
-          (JS50WX_MAX_CAMERA_WIDTH == JS_CAMERA_IMAGE_DATA_MAX_WIDTH),
-        "camera max dimensions define mismatch");
-
-      capabilities->camera_brightness_bit_depth =
-        JS50WX_CAMERA_BRIGHTNESS_BIT_DEPTH;
-      capabilities->max_camera_image_height = JS50WX_MAX_CAMERA_HEIGHT;
-      capabilities->max_camera_image_width = JS50WX_MAX_CAMERA_WIDTH;
-      capabilities->max_scan_rate = kPinchotConstantMaxScanRate;
-      capabilities->num_cameras = JS50WX_NUM_CAMERAS;
-      capabilities->num_encoders = JS50WX_NUM_ENCODERS;
-      capabilities->num_lasers = JS50WX_NUM_LASERS;
-      break;
-
-    default:
-      r = JS_ERROR_INVALID_ARGUMENT;
-  }
+  r = GetProductCapabilities(type, capabilities);
 
   return r;
 }
@@ -222,8 +193,7 @@ jsScanHead jsScanSystemCreateScanHead(jsScanSystem scan_system, uint32_t serial,
   try {
     ScanManager *manager = static_cast<ScanManager *>(scan_system);
     if (false == manager->IsConnected()) {
-      std::string serial_str = std::to_string(serial);
-      ScanHead *s = manager->CreateScanner(serial_str, id);
+      ScanHead *s = manager->CreateScanner(serial, id);
       scan_head = static_cast<jsScanHead>(s);
     }
   } catch (std::exception &e) {
@@ -245,7 +215,7 @@ jsScanHead jsScanSystemGetScanHeadById(jsScanSystem scan_system, uint32_t id)
 
   try {
     ScanManager *manager = static_cast<ScanManager *>(scan_system);
-    ScanHead *s = manager->GetScanner(id);
+    ScanHead *s = manager->GetScanHeadById(id);
     scan_head = static_cast<jsScanHead>(s);
   } catch (std::exception &e) {
     (void)e;
@@ -267,8 +237,7 @@ jsScanHead jsScanSystemGetScanHeadBySerial(jsScanSystem scan_system,
 
   try {
     ScanManager *manager = static_cast<ScanManager *>(scan_system);
-    std::string serial_str = std::to_string(serial);
-    ScanHead *s = manager->GetScanner(serial_str);
+    ScanHead *s = manager->GetScanHeadBySerial(serial);
     scan_head = static_cast<jsScanHead>(s);
   } catch (std::exception &e) {
     (void)e;
@@ -355,7 +324,7 @@ int32_t jsScanSystemRemoveScanHeadById(jsScanSystem scan_system, uint32_t id)
 
   try {
     ScanManager *manager = static_cast<ScanManager*>(scan_system);
-    ScanHead *s = manager->GetScanner(id);
+    ScanHead *s = manager->GetScanHead(id);
     if (nullptr == s) {
       r = JS_ERROR_INVALID_ARGUMENT;
     }
@@ -382,8 +351,7 @@ int32_t jsScanSystemRemoveScanHeadBySerial(jsScanSystem scan_system,
 
   try {
     ScanManager *manager = static_cast<ScanManager*>(scan_system);
-    std::string serial_str = std::to_string(serial);
-    manager->RemoveScanner(serial_str);
+    manager->RemoveScanner(serial);
   } catch (std::exception &e) {
     (void) e;
     r = JS_ERROR_INTERNAL;
@@ -579,6 +547,28 @@ bool jsScanSystemIsScanning(jsScanSystem scan_system)
 }
 
 EXPORTED
+jsScanHeadType jsScanHeadGetType(jsScanHead scan_head)
+{
+  jsScanHeadType type = JS_SCAN_HEAD_INVALID_TYPE;
+
+  if (nullptr == scan_head) {
+    return JS_SCAN_HEAD_INVALID_TYPE;
+  } else if (false == jsScanHeadIsConnected(scan_head)) {
+    return JS_SCAN_HEAD_INVALID_TYPE;
+  }
+
+  try {
+    ScanHead *sh = static_cast<ScanHead *>(scan_head);
+    type = sh->GetProductType();
+  } catch (std::exception &e) {
+    (void)e;
+    type = JS_SCAN_HEAD_INVALID_TYPE;
+  }
+
+  return type;
+}
+
+EXPORTED
 uint32_t jsScanHeadGetId(jsScanHead scan_head)
 {
   uint32_t id = 0;
@@ -611,12 +601,7 @@ uint32_t jsScanHeadGetSerial(jsScanHead scan_head)
 
   try {
     ScanHead *sh = static_cast<ScanHead *>(scan_head);
-    std::string serial_str = sh->GetSerialNumber();
-    int convert = std::stoi(serial_str);
-    if (convert < 0) {
-      throw std::runtime_error("invalid serial number");
-    }
-    serial = static_cast<uint32_t>(convert);
+    serial = sh->GetSerialNumber();
   } catch (std::exception &e) {
     (void)e;
     serial = 0xFFFFFFFF;
@@ -626,43 +611,58 @@ uint32_t jsScanHeadGetSerial(jsScanHead scan_head)
 }
 
 EXPORTED
-int32_t jsScanHeadConfigure(jsScanHead scan_head,
-                            jsScanHeadConfiguration *config)
+int32_t jsScanHeadConfigure(jsScanHead scan_head, jsScanHeadConfiguration *cfg)
+{
+  return jsScanHeadSetConfiguration(scan_head, cfg);
+}
+
+EXPORTED
+int32_t jsScanHeadSetConfiguration(jsScanHead scan_head,
+                                   jsScanHeadConfiguration *cfg)
 {
   int32_t r = 0;
 
   if (nullptr == scan_head) {
     return JS_ERROR_NULL_ARGUMENT;
-  } else if (nullptr == config) {
+  } else if (nullptr == cfg) {
     return JS_ERROR_NULL_ARGUMENT;
   }
 
   try {
     ScanHead *sh = static_cast<ScanHead *>(scan_head);
     ScanManager &manager = sh->GetScanManager();
-    ScanHeadConfiguration cfg;
 
     if (true == manager.IsScanning()) {
       return JS_ERROR_SCANNING;
     }
 
-    cfg.SetLaserOnTime(config->laser_on_time_min_us,
-                       config->laser_on_time_def_us,
-                       config->laser_on_time_max_us);
-
-    cfg.SetCameraExposure(config->camera_exposure_time_min_us,
-                          config->camera_exposure_time_def_us,
-                          config->camera_exposure_time_max_us);
-
-    cfg.SetScanOffset(config->scan_offset_us);
-    cfg.SetLaserDetectionThreshold(config->laser_detection_threshold);
-    cfg.SetSaturationThreshold(config->saturation_threshold);
-    cfg.SetSaturationPercentage(config->saturation_percentage);
-
-    sh->Configure(cfg);
+    sh->SetConfiguration(*cfg);
   } catch (std::range_error &e) {
     (void)e;
     r = JS_ERROR_INVALID_ARGUMENT;
+  } catch (std::exception &e) {
+    (void)e;
+    r = JS_ERROR_INTERNAL;
+  }
+
+  return r;
+}
+
+EXPORTED
+int32_t jsScanHeadGetConfiguration(jsScanHead scan_head,
+                                   jsScanHeadConfiguration *cfg)
+{
+  int32_t r = 0;
+
+  if (nullptr == scan_head) {
+    return JS_ERROR_NULL_ARGUMENT;
+  } else if (nullptr == cfg) {
+    return JS_ERROR_NULL_ARGUMENT;
+  }
+
+  try {
+    ScanHead *sh = static_cast<ScanHead *>(scan_head);
+    *cfg = sh->GetConfiguration();
   } catch (std::exception &e) {
     (void)e;
     r = JS_ERROR_INTERNAL;
@@ -691,10 +691,8 @@ int32_t jsScanHeadSetAlignment(jsScanHead scan_head, double roll_degrees,
     ScanHead *sh = static_cast<ScanHead *>(scan_head);
     AlignmentParams alignment(roll_degrees, shift_x, shift_y,
                               is_cable_downstream);
-    ScanHeadConfiguration config = sh->GetConfiguration();
-    config.SetAlignment(JS_CAMERA_0, alignment);
-    config.SetAlignment(JS_CAMERA_1, alignment);
-    sh->Configure(config);
+    sh->SetAlignment(JS_CAMERA_A, alignment);
+    sh->SetAlignment(JS_CAMERA_B, alignment);
   } catch (std::exception &e) {
     (void)e;
     r = JS_ERROR_INTERNAL;
@@ -723,9 +721,40 @@ int32_t jsScanHeadSetAlignmentCamera(jsScanHead scan_head, jsCamera camera,
     ScanHead *sh = static_cast<ScanHead *>(scan_head);
     AlignmentParams alignment(roll_degrees, shift_x, shift_y,
                               is_cable_downstream);
-    ScanHeadConfiguration config = sh->GetConfiguration();
-    config.SetAlignment(camera, alignment);
-    sh->Configure(config);
+
+    if (static_cast<uint32_t>(camera) < sh->GetNumberCameras()) {
+      sh->SetAlignment(camera, alignment);
+    } else {
+      r = JS_ERROR_INVALID_ARGUMENT;
+    }
+  } catch (std::exception &e) {
+    (void)e;
+    r = JS_ERROR_INTERNAL;
+  }
+
+  return r;
+}
+
+EXPORTED
+int32_t jsScanHeadGetAlignmentCamera(jsScanHead scan_head, jsCamera camera,
+                                     double *roll_degrees, double *shift_x,
+                                     double *shift_y, bool *is_cable_downstream)
+{
+  int32_t r = 0;
+
+  if ((nullptr == scan_head) || (nullptr == roll_degrees) ||
+      (nullptr == shift_x) || (nullptr == shift_x) || (nullptr == shift_y) ||
+      (nullptr == is_cable_downstream)) {
+    return JS_ERROR_NULL_ARGUMENT;
+  }
+
+  try {
+    ScanHead *sh = static_cast<ScanHead *>(scan_head);
+    AlignmentParams alignment = sh->GetAlignment(camera);
+    *roll_degrees = alignment.GetRoll();
+    *shift_x = alignment.GetShiftX();
+    *shift_y = alignment.GetShiftY();
+    *is_cable_downstream = alignment.GetFlipX();
   } catch (std::exception &e) {
     (void)e;
     r = JS_ERROR_INTERNAL;
@@ -753,10 +782,7 @@ int32_t jsScanHeadSetWindowRectangular(jsScanHead scan_head, double window_top,
   try {
     ScanHead *sh = static_cast<ScanHead *>(scan_head);
     ScanWindow window(window_top, window_bottom, window_left, window_right);
-
-    ScanHeadConfiguration config = sh->GetConfiguration();
-    config.SetWindow(window);
-    sh->Configure(config);
+    sh->SetWindow(window);
   } catch (std::range_error &e) {
     (void)e;
     r = JS_ERROR_INVALID_ARGUMENT;
@@ -879,10 +905,10 @@ int32_t jsScanHeadGetRawProfiles(jsScanHead scan_head, jsRawProfile *profiles,
       profiles[m].num_encoder_values = static_cast<uint32_t>(e.size());
       assert(profiles[m].num_encoder_values < JS_ENCODER_MAX);
 
-      std::vector<jsProfileData> data = p[m]->Data();
+      auto data = p[m]->Data();
       // TODO: We shouldn't need to do this, but for now check to be safe.
       assert(data.size() == JS_RAW_PROFILE_DATA_LEN);
-      copy(data.begin(), data.end(), profiles[m].data);
+      std::copy(data.begin(), data.end(), profiles[m].data);
       profiles[m].data_len = static_cast<uint32_t>(data.size());
       profiles[m].data_valid_brightness = p[m]->GetNumberValidBrightness();
       profiles[m].data_valid_xy = p[m]->GetNumberValidGeometry();
@@ -937,7 +963,7 @@ int32_t jsScanHeadGetProfiles(jsScanHead scan_head, jsProfile *profiles,
       profiles[m].num_encoder_values = static_cast<uint32_t>(e.size());
       assert(profiles[m].num_encoder_values < JS_ENCODER_MAX);
 
-      std::vector<jsProfileData> data = p[m]->Data();
+      auto data = p[m]->Data();
       unsigned int stride = _data_format_to_stride(profiles[m].format);
       unsigned int p = 0;
       for (unsigned int n = 0; n < data.size(); n += stride) {
@@ -981,6 +1007,8 @@ int32_t jsScanHeadGetCameraImage(jsScanHead scan_head, jsCamera camera,
       r = JS_ERROR_NOT_CONNECTED;
     } else if (true == manager.IsScanning()) {
       r = JS_ERROR_SCANNING;
+    } else if (camera >= sh->GetNumberCameras()) {
+      r = JS_ERROR_INVALID_ARGUMENT;
     } else {
       jsScanHeadCapabilities capabilities;
       // TODO: need to get the scan head type from somewhere
@@ -988,33 +1016,38 @@ int32_t jsScanHeadGetCameraImage(jsScanHead scan_head, jsCamera camera,
       auto num_cameras = capabilities.num_cameras;
 
       // use temporary config to enable/disable lasers for image capture
-      ScanHeadConfiguration user_config = sh->GetConfiguration();
-      ScanHeadConfiguration config(user_config);
+      jsScanHeadConfiguration user_config = sh->GetConfiguration();
+      jsScanHeadConfiguration config = user_config;
       if (false == enable_lasers) {
-        config.SetLaserOnTime(0, 0, 0);
+        config.laser_on_time_max_us = 0;
+        config.laser_on_time_def_us = 0;
+        config.laser_on_time_min_us = 0;
       } else {
         // make sure laser on time does not exceed camera exposure as it
         // could violate an assumption in the scan server or FPGA
-        uint32_t laser_max = config.GetMaxLaserOn();
-        uint32_t laser_def = config.GetDefaultLaserOn();
-        uint32_t laser_min = config.GetMinLaserOn();
+        uint32_t laser_max = config.laser_on_time_max_us;
+        uint32_t laser_def = config.laser_on_time_def_us;
+        uint32_t laser_min = config.laser_on_time_min_us;
 
-        if (laser_max > config.GetMaxExposure()) {
-          laser_max = config.GetMaxExposure();
+        if (laser_max > config.camera_exposure_time_max_us) {
+          laser_max = config.camera_exposure_time_max_us;
         }
-        if (laser_def > config.GetDefaultExposure()) {
-          laser_def = config.GetDefaultExposure();
+        if (laser_def > config.camera_exposure_time_def_us) {
+          laser_def = config.camera_exposure_time_def_us;
         }
-        if (laser_min > config.GetMinExposure()) {
-          laser_min = config.GetMinExposure();
+        if (laser_min > config.camera_exposure_time_min_us) {
+          laser_min = config.camera_exposure_time_min_us;
         }
 
-        config.SetLaserOnTime(laser_min, laser_def, laser_max);
+        config.laser_on_time_max_us = laser_max;
+        config.laser_on_time_def_us = laser_def;
+        config.laser_on_time_min_us = laser_min;
       }
-      sh->Configure(config);
+      sh->SetConfiguration(config);
 
       // calculate the rate at which images are made
-      double rate_hz = 1.0 / (num_cameras * config.GetMaxExposure() * 1e-6);
+      uint32_t camera_exposure_max = config.camera_exposure_time_max_us;
+      double rate_hz = 1.0 / (num_cameras * camera_exposure_max * 1e-6);
       // cap the max rate at which images are done
       if (rate_hz > 2.0) {
         rate_hz = 2.0;
@@ -1030,7 +1063,7 @@ int32_t jsScanHeadGetCameraImage(jsScanHead scan_head, jsCamera camera,
 
       manager.StopScanning();
       // restore user's configuration settings
-      sh->Configure(user_config);
+      sh->SetConfiguration(user_config);
 
       // copy the image into the jsCameraImage struct
       auto p = sh->GetProfiles(num_cameras);
