@@ -127,6 +127,10 @@ void ScanHeadSender::SendMain()
             error_msg << "Failed sendto IP address " << std::hex << ip_addr;
             throw std::runtime_error(error_msg.str());
           }
+
+          // HACK: slight delay needed to make sure Windows doesn't drop
+          // UDP packets?
+          std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
       }
     }

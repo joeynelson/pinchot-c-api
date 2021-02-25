@@ -207,8 +207,9 @@ std::map<uint32_t, ScanHead *> ScanManager::Connect(uint32_t timeout_s)
       }
     }
 
-    // slight delay for window messages to propogate
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    // need to allow some time for the windows to be received and applied
+    // otherwise we can get back an invalid max scan rate and confuse users
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     // clear out all status messages
     for (auto const &pair : scanners_by_serial) {

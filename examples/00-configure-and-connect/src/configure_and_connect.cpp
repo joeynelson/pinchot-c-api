@@ -26,8 +26,8 @@ void print_type_and_capabilities(jsScanHeadType t, jsScanHeadCapabilities &c)
   case (JS_SCAN_HEAD_JS50WX):
     std::cout << "JS-50WX" << std::endl;
     break;
-  case (JS_SCAN_HEAD_JS50SC):
-    std::cout << "JS-50SC" << std::endl;
+  case (JS_SCAN_HEAD_JS50WSC):
+    std::cout << "JS-50WSC" << std::endl;
     break;
   default:
     std::cout << "INVALID" << std::endl;

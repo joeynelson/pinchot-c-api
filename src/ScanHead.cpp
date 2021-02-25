@@ -318,8 +318,8 @@ void ScanHead::PushStatus(StatusMessage status)
     uint16_t val = status.GetVersionInformation().product;
     m_product_type = (JS_SCAN_HEAD_JS50WX == val)
                        ? JS_SCAN_HEAD_JS50WX
-                       : (JS_SCAN_HEAD_JS50SC == val)
-                           ? JS_SCAN_HEAD_JS50SC
+                       : (JS_SCAN_HEAD_JS50WSC == val)
+                           ? JS_SCAN_HEAD_JS50WSC
                            : JS_SCAN_HEAD_INVALID_TYPE;
   }
   m_thread_sync.notify_all();
@@ -329,11 +329,11 @@ void ScanHead::ProcessPacket(DataPacket &packet)
 {
   uint32_t source = 0;
   uint64_t timestamp = 0;
-  uint32_t raw_bytes_len = 0;
-  uint8_t *raw_bytes = packet.GetRawBytes(&raw_bytes_len);
-  uint32_t total_packets = packet.GetNumParts();
-  uint32_t current_packet = packet.GetPartNum();
-  DataType datatype_mask = packet.GetContents();
+  uint32_t raw_len = 0;
+  uint8_t *raw = packet.GetRawBytes(&raw_len);
+  const uint32_t total_packets = packet.GetNumParts();
+  const uint32_t current_packet = packet.GetPartNum();
+  const uint16_t datatype_mask = packet.GetContents();
 
   source = packet.GetSourceId();
   timestamp = packet.GetTimeStamp();
@@ -352,73 +352,85 @@ void ScanHead::ProcessPacket(DataPacket &packet)
     m_last_profile_timestamp = timestamp;
     m_packets_received_for_profile = 0;
 
-    m_profile_ptr = std::make_shared<Profile>(datatype_mask);
-    m_profile_ptr->SetScanHead(packet.GetScanHeadId());
-    m_profile_ptr->SetCamera(packet.GetCamera());
-    m_profile_ptr->SetLaser(packet.GetLaser());
-    m_profile_ptr->SetTimestamp(packet.GetTimeStamp());
-    m_profile_ptr->SetLaserOnTime(packet.GetLaserOnTime());
-    m_profile_ptr->SetExposureTime(packet.GetExposureTime());
-    if (0 != packet.NumEncoderVals()) {
-      m_profile_ptr->SetEncoderValues(packet.GetEncoderValues());
-    }
+    m_profile_ptr = std::make_shared<Profile>(packet);
   }
 
+  // if Brightness, assume X/Y data is present
   if (datatype_mask & DataType::Brightness) {
-    FragmentLayout layout = packet.GetFragmentLayout(DataType::Brightness);
+    FragmentLayout b_layout = packet.GetFragmentLayout(DataType::Brightness);
+    FragmentLayout xy_layout = packet.GetFragmentLayout(DataType::XYData);
+    uint8_t* b_src = reinterpret_cast<uint8_t *>(&(raw[b_layout.offset]));
+    int16_t* xy_src = reinterpret_cast<int16_t *>(&(raw[xy_layout.offset]));
     const uint32_t start_column = packet.GetStartColumn();
-    uint32_t idx = 0;
+    const jsCamera id = packet.GetCamera();
 
-    for (unsigned int j = 0; j < layout.num_vals; j++) {
-      idx = (j * total_packets + current_packet) * layout.step + start_column;
+    // assume step is the same for both layouts
+    const uint32_t inc = total_packets * xy_layout.step;
+    uint32_t idx = start_column + current_packet * xy_layout.step;
 
-      uint8_t brightness = raw_bytes[layout.offset + j];
-      if (JS_PROFILE_DATA_INVALID_BRIGHTNESS != brightness) {
-        m_profile_ptr->InsertBrightness(idx, brightness);
-      }
-    }
-  }
-
-  if (datatype_mask & DataType::XYData) {
-    FragmentLayout layout = packet.GetFragmentLayout(DataType::XYData);
-    uint32_t m = 0;
-    uint32_t n = layout.offset;
-    int16_t x_raw = 0;
-    int16_t y_raw = 0;
-    int id = packet.GetCamera();
-
-    for (unsigned int j = 0; j < layout.num_vals; j++) {
-      x_raw = htons(*(reinterpret_cast<int16_t *>(&(raw_bytes[n]))));
-      n += sizeof(int16_t);
-      y_raw = htons(*(reinterpret_cast<int16_t *>(&(raw_bytes[n]))));
-      n += sizeof(int16_t);
+    // assume num_vals is same for both layouts
+    for (uint32_t n = 0; n < xy_layout.num_vals; n++) {
+      int16_t x_raw = htons(*xy_src++);
+      int16_t y_raw = htons(*xy_src++);
+      uint8_t brightness = *b_src++;
 
       if ((JS_PROFILE_DATA_INVALID_XY != x_raw) &&
           (JS_PROFILE_DATA_INVALID_XY != y_raw)) {
         int32_t x = static_cast<int32_t>(x_raw);
         int32_t y = static_cast<int32_t>(y_raw);
         Point2D<int32_t> point = m_alignment[id].CameraToMill(x, y);
-
-        // destination
-        m = packet.GetStartColumn();
-        m += (j * total_packets + current_packet) * layout.step;
-        m_profile_ptr->InsertPoint(m, point);
+        m_profile_ptr->InsertPointAndBrightness(idx, point, brightness);
       }
+
+      idx += inc;
+    }
+  } else if (datatype_mask & DataType::XYData) {
+    FragmentLayout layout = packet.GetFragmentLayout(DataType::XYData);
+    int16_t* src = reinterpret_cast<int16_t *>(&(raw[layout.offset]));
+    const uint32_t start_column = packet.GetStartColumn();
+    const jsCamera id = packet.GetCamera();
+
+    const uint32_t inc = total_packets * layout.step;
+    uint32_t idx = start_column + current_packet * layout.step;
+
+    for (unsigned int j = 0; j < layout.num_vals; j++) {
+      uint16_t x_raw = htons(*src++);
+      uint16_t y_raw = htons(*src++);
+
+      if ((JS_PROFILE_DATA_INVALID_XY != x_raw) &&
+          (JS_PROFILE_DATA_INVALID_XY != y_raw)) {
+        int32_t x = static_cast<int32_t>(x_raw);
+        int32_t y = static_cast<int32_t>(y_raw);
+        Point2D<int32_t> point = m_alignment[id].CameraToMill(x, y);
+        m_profile_ptr->InsertPoint(idx, point);
+      }
+
+      idx += inc;
+    }
+  } else if (datatype_mask & DataType::Image) {
+    // skip subpixel packet
+    if ((m_packets_received_for_profile + 1) != total_packets) {
+      FragmentLayout layout = packet.GetFragmentLayout(DataType::Image);
+      uint32_t len = kImageDataSize;
+      uint32_t m = current_packet * len;
+      uint32_t n = layout.offset;
+      // HACK HACK HACK: need to account for the fact that the scan_server sends
+      // back exposure value right shifted by 8 for image mode
+      m_profile_ptr->SetExposureTime(packet.GetExposureTime() << 8);
+      m_profile_ptr->InsertImageSlice(m, &(raw[n]), len);
     }
   }
 
 #if 0
-  // TODO: FKS-252
-  // Support in the future. How do we expose Subpixel data? Don't think we want
-  // normal customers to use it, just internal/special customers.
-  if (datatype_mask & DataType::Subpixel) {
+  // we don't support this
+  else if (datatype_mask & DataType::Subpixel) {
     FragmentLayout layout = packet.GetFragmentLayout(DataType::Subpixel);
     uint32_t m = 0;
     uint32_t n = layout.offset;
     uint16_t pixel = 0;
 
     for (unsigned int j = 0; j < layout.num_vals; j++) {
-      pixel = htons(*(reinterpret_cast<uint16_t *>(&(raw_bytes[n]))));
+      pixel = htons(*(reinterpret_cast<uint16_t *>(&(raw[n]))));
       n += sizeof(uint16_t);
 
       if (kInvalidSubpixel != pixel) {
@@ -431,20 +443,6 @@ void ScanHead::ProcessPacket(DataPacket &packet)
     }
   }
 #endif
-
-  if (datatype_mask & DataType::Image) {
-    // skip subpixel packet
-    if ((m_packets_received_for_profile + 1) != total_packets) {
-      FragmentLayout layout = packet.GetFragmentLayout(DataType::Image);
-      uint32_t len = kImageDataSize;
-      uint32_t m = current_packet * len;
-      uint32_t n = layout.offset;
-      // HACK HACK HACK: need to account for the fact that the scan_server sends
-      // back exposure value right shifted by 8 for image mode
-      m_profile_ptr->SetExposureTime(packet.GetExposureTime() << 8);
-      m_profile_ptr->InsertImageSlice(m, &(raw_bytes[n]), len);
-    }
-  }
 
   m_packets_received_for_profile++;
   if (m_packets_received_for_profile == total_packets) {

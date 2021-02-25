@@ -180,7 +180,7 @@ void StatusMessage::ValidatePacketVersion(const VersionInformation &ver)
 {
   if (ver.product == JS_SCAN_HEAD_INVALID_TYPE ||
       ((ver.product != JS_SCAN_HEAD_JS50WX) &&
-       (ver.product != JS_SCAN_HEAD_JS50SC))) {
+       (ver.product != JS_SCAN_HEAD_JS50WSC))) {
     throw std::runtime_error("Invalid product ID: " +
                              std::to_string(ver.product));
   }

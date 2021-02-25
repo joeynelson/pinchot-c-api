@@ -51,6 +51,9 @@ void AlignmentParams::SetRoll(double roll, bool flip_x)
   sin_neg_roll = std::sin(-1.0 * roll * rho);
   cos_neg_roll = std::cos(-1.0 * roll * rho);
   cos_neg_yaw = std::cos(-1.0 * yaw * rho);
+
+  cos_yaw_times_cos_roll = cos_yaw * cos_roll;
+  cos_yaw_times_sin_roll = cos_yaw * sin_roll;
 }
 
 void AlignmentParams::SetShiftX(double shift_x)

@@ -125,6 +125,8 @@ class AlignmentParams {
   double sin_neg_roll;
   double cos_neg_roll;
   double cos_neg_yaw;
+  double cos_yaw_times_cos_roll;
+  double cos_yaw_times_sin_roll;
   double shift_x;
   double shift_y;
   double shift_x_1000;
@@ -148,8 +150,8 @@ inline Point2D<int32_t> AlignmentParams::CameraToMill(int32_t x,
   double yd = static_cast<double>(y);
 
   // now calculate the mill values for both X and Y
-  double xm = (xd * cos_yaw * cos_roll) - (yd * sin_roll) + shift_x_1000;
-  double ym = (xd * cos_yaw * sin_roll) + (yd * cos_roll) + shift_y_1000;
+  double xm = (xd * cos_yaw_times_cos_roll) - (yd * sin_roll) + shift_x_1000;
+  double ym = (xd * cos_yaw_times_sin_roll) + (yd * cos_roll) + shift_y_1000;
 
   // now convert back to int32_t values
   int32_t xi = static_cast<int32_t>(xm);

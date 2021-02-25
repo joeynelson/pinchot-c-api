@@ -14,15 +14,15 @@
 using namespace joescan;
 
 ScanRequest::ScanRequest(jsDataFormat format, uint32_t clientAddress,
-                         int clientPort, int scanHeadId, uint32_t interval,
+                         int clientPort, int scan_head_id, uint32_t interval,
                          uint32_t scanCount,
                          const jsScanHeadConfiguration &config)
 {
   this->clientAddress = clientAddress;
   this->clientPort = clientPort;
-  this->scanHeadId = scanHeadId;
-  this->cameraId = 0; // TODO: If these become useful, don't hardcode.
-  this->laserId = 0;  // TODO: If these become useful, don't hardcode.
+  this->scan_head_id = scan_head_id;
+  this->camera_id = 0; // TODO: If these become useful, don't hardcode.
+  this->laser_id = 0;  // TODO: If these become useful, don't hardcode.
   this->flags = 0;    // TODO: If these become useful, don't hardcode.
   minimumLaserExposure = config.laser_on_time_min_us;
   defaultLaserExposure = config.laser_on_time_def_us;
@@ -71,9 +71,9 @@ ScanRequest::ScanRequest(const Datagram &datagram)
   index += sizeof(uint16_t);
   requestSequence = datagram[index++];
 
-  scanHeadId = datagram[index++];
-  cameraId = datagram[index++];
-  laserId = datagram[index++];
+  scan_head_id = datagram[index++];
+  camera_id = datagram[index++];
+  laser_id = datagram[index++];
   DEPRECATED_DO_NOT_USE = datagram[index++];
   flags = datagram[index++];
 
@@ -160,12 +160,12 @@ Datagram ScanRequest::Serialize(uint8_t requestSequence)
   index += SerializeIntegralToBytes(scanRequestPacket, &clientPort);
 
   scanRequestPacket.push_back(requestSequence);
-  scanRequestPacket.push_back(scanHeadId);
+  scanRequestPacket.push_back(scan_head_id);
   // TODO: This isn't needed now, but may be useful on multi-camera systems in
   // the future
-  scanRequestPacket.push_back(cameraId);
+  scanRequestPacket.push_back(camera_id);
   // TODO: This also isn't needed now.
-  scanRequestPacket.push_back(laserId);
+  scanRequestPacket.push_back(laser_id);
   // deprecated exposure setting
   scanRequestPacket.push_back(DEPRECATED_DO_NOT_USE);
   scanRequestPacket.push_back(flags);
@@ -241,8 +241,8 @@ bool ScanRequest::operator==(const ScanRequest &other) const
 {
   bool same = true;
   if (magic != other.magic || requestType != other.requestType ||
-      scanHeadId != other.scanHeadId || cameraId != other.cameraId ||
-      laserId != other.laserId ||
+      scan_head_id != other.scan_head_id || camera_id != other.camera_id ||
+      laser_id != other.laser_id ||
       minimumLaserExposure != other.minimumLaserExposure ||
       defaultLaserExposure != other.defaultLaserExposure ||
       maximumLaserExposure != other.maximumLaserExposure ||

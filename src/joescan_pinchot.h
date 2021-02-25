@@ -128,7 +128,7 @@ enum jsError {
 typedef enum {
   JS_SCAN_HEAD_INVALID_TYPE = 0,
   JS_SCAN_HEAD_JS50WX = 1,
-  JS_SCAN_HEAD_JS50SC = 2,
+  JS_SCAN_HEAD_JS50WSC = 2,
 } jsScanHeadType;
 
 /**

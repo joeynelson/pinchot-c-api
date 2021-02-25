@@ -20,7 +20,7 @@ namespace joescan {
 class ScanRequest {
  public:
   ScanRequest(jsDataFormat format, uint32_t clientAddress, int clientPort,
-              int scanHeadId, uint32_t interval, uint32_t scanCount,
+              int scan_head_id, uint32_t interval, uint32_t scanCount,
               const jsScanHeadConfiguration &config);
   ScanRequest(const Datagram &datagram);
   ScanRequest() = default;
@@ -74,9 +74,9 @@ class ScanRequest {
   uint16_t magic;
   UdpPacketType requestType = UdpPacketType::StartScanning;
 
-  uint8_t scanHeadId;
-  uint8_t cameraId;
-  uint8_t laserId;
+  uint8_t scan_head_id;
+  uint8_t camera_id;
+  uint8_t laser_id;
 
   // deprecated exposure setting, interleaved or simultaneous
   uint8_t DEPRECATED_DO_NOT_USE;
@@ -168,17 +168,17 @@ inline UdpPacketType ScanRequest::GetRequestType() const
 
 inline uint8_t ScanRequest::GetScanHeadId() const
 {
-  return scanHeadId;
+  return scan_head_id;
 }
 
 inline uint8_t ScanRequest::GetCameraId() const
 {
-  return cameraId;
+  return camera_id;
 }
 
 inline uint8_t ScanRequest::GetLaserId() const
 {
-  return laserId;
+  return laser_id;
 }
 
 inline uint8_t ScanRequest::GetFlags() const
