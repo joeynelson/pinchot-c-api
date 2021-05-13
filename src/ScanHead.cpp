@@ -115,6 +115,8 @@ void ScanHead::ReceiveStart()
     m_last_profile_timestamp = 0;
     m_active_count = 1;
     m_is_data_available_condition_enabled = true;
+    // reset circular buffer holding profile data
+    m_circ_buffer.clear();
   }
 
   m_thread_sync.notify_all();
@@ -160,12 +162,6 @@ std::vector<std::shared_ptr<Profile>> ScanHead::GetProfiles(uint32_t count)
   }
 
   return profiles;
-}
-
-void ScanHead::FlushProfiles()
-{
-  std::lock_guard<std::mutex> lock(m_mutex);
-  m_circ_buffer.clear();
 }
 
 StatusMessage ScanHead::GetStatusMessage()
@@ -301,27 +297,23 @@ ScanWindow &ScanHead::GetWindow()
 
 void ScanHead::PushProfile(std::shared_ptr<Profile> profile)
 {
-  {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_circ_buffer.push_back(profile);
-  }
+  // private function, assume mutex is already locked
+  m_circ_buffer.push_back(profile);
   m_thread_sync.notify_all();
 }
 
 void ScanHead::PushStatus(StatusMessage status)
 {
-  {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_ip_address = status.GetScanHeadIp();
-    m_status = status;
+  // private function, assume mutex is already locked
+  m_ip_address = status.GetScanHeadIp();
+  m_status = status;
 
-    uint16_t val = status.GetVersionInformation().product;
-    m_product_type = (JS_SCAN_HEAD_JS50WX == val)
-                       ? JS_SCAN_HEAD_JS50WX
-                       : (JS_SCAN_HEAD_JS50WSC == val)
-                           ? JS_SCAN_HEAD_JS50WSC
-                           : JS_SCAN_HEAD_INVALID_TYPE;
-  }
+  uint16_t val = status.GetVersionInformation().product;
+  m_product_type = (JS_SCAN_HEAD_JS50WX == val) ? JS_SCAN_HEAD_JS50WX
+                                                : (JS_SCAN_HEAD_JS50WSC == val)
+                                                    ? JS_SCAN_HEAD_JS50WSC
+                                                    : JS_SCAN_HEAD_INVALID_TYPE;
+
   m_thread_sync.notify_all();
 }
 
@@ -359,8 +351,8 @@ void ScanHead::ProcessPacket(DataPacket &packet)
   if (datatype_mask & DataType::Brightness) {
     FragmentLayout b_layout = packet.GetFragmentLayout(DataType::Brightness);
     FragmentLayout xy_layout = packet.GetFragmentLayout(DataType::XYData);
-    uint8_t* b_src = reinterpret_cast<uint8_t *>(&(raw[b_layout.offset]));
-    int16_t* xy_src = reinterpret_cast<int16_t *>(&(raw[xy_layout.offset]));
+    uint8_t *b_src = reinterpret_cast<uint8_t *>(&(raw[b_layout.offset]));
+    int16_t *xy_src = reinterpret_cast<int16_t *>(&(raw[xy_layout.offset]));
     const uint32_t start_column = packet.GetStartColumn();
     const jsCamera id = packet.GetCamera();
 
@@ -386,7 +378,7 @@ void ScanHead::ProcessPacket(DataPacket &packet)
     }
   } else if (datatype_mask & DataType::XYData) {
     FragmentLayout layout = packet.GetFragmentLayout(DataType::XYData);
-    int16_t* src = reinterpret_cast<int16_t *>(&(raw[layout.offset]));
+    int16_t *src = reinterpret_cast<int16_t *>(&(raw[layout.offset]));
     const uint32_t start_column = packet.GetStartColumn();
     const jsCamera id = packet.GetCamera();
 
@@ -477,6 +469,7 @@ void ScanHead::ReceiveMain()
       // Poll for activity on on the file descriptor, timeout if no activity.
       ret = select(nfds, &rfds, NULL, NULL, &tv);
       if (0 < ret) {
+        std::unique_lock<std::mutex> lock(m_mutex);
         // Activity indicated, read out data from socket.
         char *buf = reinterpret_cast<char *>(m_packet_buf);
         size_t len = m_packet_buf_len;

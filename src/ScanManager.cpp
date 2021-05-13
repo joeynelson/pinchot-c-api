@@ -289,7 +289,6 @@ void ScanManager::StartScanning()
   for (auto const &pair : scanners_by_serial) {
     ScanHead *scan_head = pair.second;
 
-    scan_head->FlushProfiles();
     scan_head->ReceiveStart();
 
     auto fmt = scan_head->GetDataFormat();
@@ -335,7 +334,6 @@ void ScanManager::StartScanning(ScanHead *scan_head)
   std::vector<std::pair<uint32_t, Datagram>> requests;
   requests.reserve(1);
 
-  scan_head->FlushProfiles();
   scan_head->ReceiveStart();
 
   auto fmt = scan_head->GetDataFormat();

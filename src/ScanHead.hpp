@@ -115,11 +115,6 @@ class ScanHead {
   std::vector<std::shared_ptr<Profile>> GetProfiles(uint32_t count);
 
   /**
-   * Flushes all profiles from the internal buffer
-   */
-  void FlushProfiles();
-
-  /**
    * Obtains the last reported status message from a scan head. Note, status
    * messages are only sent by the scan head when not actively scanning.
    *
