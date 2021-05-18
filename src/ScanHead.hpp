@@ -115,6 +115,12 @@ class ScanHead {
   std::vector<std::shared_ptr<Profile>> GetProfiles(uint32_t count);
 
   /**
+   * Empties the circular buffer used to store received profiles from the
+   * scan head.
+   */
+  void ClearProfiles();
+
+  /**
    * Obtains the last reported status message from a scan head. Note, status
    * messages are only sent by the scan head when not actively scanning.
    *

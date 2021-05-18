@@ -892,6 +892,23 @@ int32_t jsScanHeadWaitUntilProfilesAvailable(jsScanHead scan_head,
                                              uint32_t timeout_us);
 
 /**
+ * @brief Empties the internal client side software buffers used to store
+ * profiles received from a given scan head.
+ *
+ * @note Under normal scanning conditions where the application consumes
+ * profiles as they become available, this function will not be needed. It's
+ * use is to be found in cases where the application fails to consume profiles
+ * after some time and the number of buffered profiles, as indicated by the
+ * `jsScanHeadGetProfilesAvailable` function becomes more than the application
+ * can consume and only the most recent scan data is desired.
+ *
+ * @param scan_head Reference to scan head.
+ * @return `0` on success, negative value mapping to `jsError` on error.
+ */
+EXPORTED
+int32_t jsScanHeadClearProfiles(jsScanHead scan_head);
+
+/**
  * @brief Reads `jsProfile` formatted profile data from a given scan head.
  * The number of profiles returned is either the max value requested or the
  * total number of profiles ready to be read out, whichever is less.

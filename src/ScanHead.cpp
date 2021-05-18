@@ -164,6 +164,12 @@ std::vector<std::shared_ptr<Profile>> ScanHead::GetProfiles(uint32_t count)
   return profiles;
 }
 
+void ScanHead::ClearProfiles()
+{
+  std::lock_guard<std::mutex> lock(m_mutex);
+  m_circ_buffer.clear();
+}
+
 StatusMessage ScanHead::GetStatusMessage()
 {
   return m_status;
@@ -319,6 +325,7 @@ void ScanHead::PushStatus(StatusMessage status)
 
 void ScanHead::ProcessPacket(DataPacket &packet)
 {
+  // private function, assume mutex is already locked
   uint32_t source = 0;
   uint64_t timestamp = 0;
   uint32_t raw_len = 0;

@@ -866,6 +866,26 @@ int32_t jsScanHeadWaitUntilProfilesAvailable(jsScanHead scan_head,
 }
 
 EXPORTED
+int32_t jsScanHeadClearProfiles(jsScanHead scan_head)
+{
+  int32_t r = 0;
+
+  if (nullptr == scan_head) {
+    return JS_ERROR_NULL_ARGUMENT;
+  }
+
+  try {
+    ScanHead *sh = static_cast<ScanHead *>(scan_head);
+    sh->ClearProfiles();
+  } catch (std::exception &e) {
+    (void)e;
+    r = JS_ERROR_INTERNAL;
+  }
+
+  return r;
+}
+
+EXPORTED
 int32_t jsScanHeadGetRawProfiles(jsScanHead scan_head, jsRawProfile *profiles,
                                  uint32_t max_profiles)
 {
