@@ -34,8 +34,6 @@ class DataPacket {
   jsCamera GetCamera() const;
   jsLaser GetLaser() const;
   uint64_t GetTimeStamp() const;
-  uint64_t GetReceived() const;
-
   /**
    * Profile data can be transmitted over the wire through multiple UDP
    * packets if the payload is large enough. This function returns the
@@ -55,7 +53,7 @@ class DataPacket {
   uint32_t GetNumParts() const;
   int GetPayloadLength() const;
   uint8_t NumEncoderVals() const;
-  DataType GetContents() const;
+  uint16_t GetContents() const;
   int GetNumContentTypes() const;
   // inline these two functions for small optimization, gprof indicates they
   // are called frequently so inlining them saves some call overhead
@@ -66,41 +64,38 @@ class DataPacket {
   uint16_t GetLaserOnTime() const;
   uint16_t GetExposureTime() const;
 
-  FragmentLayout GetFragmentLayout(DataType type) const;
+  inline FragmentLayout GetFragmentLayout(DataType type) const;
   uint8_t *GetRawBytes(uint32_t *byte_len) const;
 
  private:
   std::map<DataType, FragmentLayout> fragment_layouts;
-  uint8_t *raw;
-  uint32_t raw_len;
+  DatagramHeader m_hdr;
+  uint8_t *m_raw;
+  uint32_t m_raw_len;
+  int m_num_content_types;
+  std::vector<int64_t> m_encoders;
 
-  uint8_t scan_head;
-  jsCamera camera;
-  jsLaser laser;
-  uint64_t timestamp;
-  uint64_t received;
-  uint32_t part_num;
-  uint32_t num_parts;
-  int payload_length;
-  uint8_t num_encoder_vals;
-  DataType contents;
-  int num_content_types;
-  uint16_t start_column;
-  uint16_t end_column;
-
-  std::vector<int64_t> encoder_vals;
-  uint16_t laser_on_time;
-  uint16_t exposure_time;
+  friend class Profile;
 };
+
+inline FragmentLayout DataPacket::GetFragmentLayout(DataType type) const
+{
+  auto iter = fragment_layouts.find(type);
+  if (iter != fragment_layouts.end()) {
+    return iter->second;
+  }
+
+  return FragmentLayout();
+}
 
 inline uint16_t DataPacket::GetStartColumn() const
 {
-  return start_column;
+  return m_hdr.start_column;
 }
 
 inline uint16_t DataPacket::GetEndColumn() const
 {
-  return end_column;
+  return m_hdr.end_column;
 }
 } // namespace joescan
 

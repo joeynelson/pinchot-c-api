@@ -42,7 +42,7 @@ class NetworkInterface {
  private:
   static net_iface InitUDPSocket(uint32_t ip, uint16_t port);
   // The OS buffer size in bytes for a UDP data socket connection.
-  static const int kRecvSocketBufferSize = 0x10000000;
+  static const int kRecvSocketBufferSize = 0x400000;
 };
 } // namespace joescan
 

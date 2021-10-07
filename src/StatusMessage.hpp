@@ -191,8 +191,7 @@ class StatusMessage {
   uint16_t GetClientPort() const;
 
   /**
-   * Gets the number of valid cameras which is used to read only the
-   * good cameras in `GetPixelsInWindow` and `CameraTemperatures`
+   * Gets the number of valid cameras for a given scan head.
    *
    * @return Number of valid cameras
    */
@@ -246,7 +245,6 @@ class StatusMessage {
     InfoHeader header;
     VersionInformation version;
 
-    /* Static Data */
     uint32_t serial_number = 0;
     uint32_t max_scan_rate = 0;
     uint32_t scan_head_ip = 0;
@@ -258,6 +256,15 @@ class StatusMessage {
     uint32_t num_profiles_sent = 0;
     uint8_t valid_encoders = 0;
     uint8_t valid_cameras = 0;
+    // reserved for future use
+    uint32_t reserved_0 = 0xFFFFFFFF;
+    uint32_t reserved_1 = 0xFFFFFFFF;
+    uint32_t reserved_2 = 0xFFFFFFFF;
+    uint32_t reserved_3 = 0xFFFFFFFF;
+    uint32_t reserved_4 = 0xFFFFFFFF;
+    uint32_t reserved_5 = 0xFFFFFFFF;
+    uint32_t reserved_6 = 0xFFFFFFFF;
+    uint32_t reserved_7 = 0xFFFFFFFF;
 
     /**
      * Variable Data

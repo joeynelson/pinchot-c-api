@@ -12,12 +12,6 @@
 
 namespace joescan {
 
-enum HardwareId : uint16_t {
-  Invalid = 0,
-  XU3 = 1,
-  TE0820 = 2,
-};
-
 enum VersionFlagMasks : uint16_t {
   Dirty = 1 << 0,
   Develop = 1 << 1,
@@ -32,7 +26,7 @@ struct VersionInformation {
   uint32_t minor = 0;
   uint32_t patch = 0;
   uint32_t commit = 0;
-  uint16_t hwid = 0;
+  uint16_t product = 0;
   uint16_t flags = 0;
 };
 } // namespace joescan

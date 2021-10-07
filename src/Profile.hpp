@@ -8,9 +8,12 @@
 #ifndef JOESCAN_PROFILE_H
 #define JOESCAN_PROFILE_H
 
+#include <array>
+#include <cassert>
 #include <memory>
 #include <vector>
 
+#include "DataPacket.hpp"
 #include "NetworkTypes.hpp"
 #include "Point2D.hpp"
 #include "joescan_pinchot.h"
@@ -21,23 +24,23 @@ class Profile {
   /**
    * Initializes the profile according to the data contents it is to hold.
    *
-   * @param mask A bitmask of the data types the profile will hold.
+   * @param packet The initial datapacket to construct the Profile from.
    */
-  Profile(DataType mask);
+  Profile(DataPacket &packet);
 
   /**
    * Sets the scan head identifier for the profile.
    *
-   * @param scan_head The ID to set for the scan head.
+   * @param m_scan_head_id The ID to set for the scan head.
    */
-  void SetScanHead(uint8_t scan_head);
+  void SetScanHead(uint8_t m_scan_head_id);
 
   /**
-   * Sets the camera identifier for the profile.
+   * Sets the m_camera identifier for the profile.
    *
-   * @param camera The ID to set for the camera.
+   * @param m_camera The ID to set for the m_camera.
    */
-  void SetCamera(jsCamera camera);
+  void SetCamera(jsCamera m_camera);
 
   /**
    * Sets the laser identifier for the profile.
@@ -47,11 +50,11 @@ class Profile {
   void SetLaser(jsLaser laser);
 
   /**
-   * Sets the camera timestamp for the profile.
+   * Sets the m_camera m_timestamp for the profile.
    *
-   * @param timestamp The camera timestamp.
+   * @param m_timestamp The m_camera m_timestamp.
    */
-  void SetTimestamp(uint64_t timestamp);
+  void SetTimestamp(uint64_t m_timestamp);
 
   /**
    * Sets the encoder values associated with the given profile.
@@ -61,7 +64,7 @@ class Profile {
   void SetEncoderValues(std::vector<int64_t> encoders);
 
   /**
-   * Sets the camera exposure time for the profile in microseconds.
+   * Sets the m_camera exposure time for the profile in microseconds.
    *
    * @param exposure The exposure time in microseconds.
    */
@@ -70,9 +73,9 @@ class Profile {
   /**
    * Sets the laser pulse width time in microseconds.
    *
-   * @param laser_on_time Pulse width time in microseconds.
+   * @param m_laser_on_time Pulse width time in microseconds.
    */
-  void SetLaserOnTime(uint32_t laser_on_time);
+  void SetLaserOnTime(uint32_t m_laser_on_time);
 
   /**
    * Sets information about the packet relating to the number of UDP packets
@@ -100,6 +103,17 @@ class Profile {
   inline void InsertPoint(uint32_t idx, Point2D<int32_t> value);
 
   /**
+   * Inserts a XY geometry point and brightness at a given position into the
+   * profile.
+   *
+   * @param idx The absolute position in the profile.
+   * @param value The XY geometry.
+   */
+  inline void InsertPointAndBrightness(uint32_t idx,
+                                       Point2D<int32_t> point,
+                                       uint8_t brightness);
+
+  /**
    * Inserts a subpixel point at a given position into the profile.
    *
    * @param idx The absolute posiion in the profile.
@@ -123,7 +137,7 @@ class Profile {
    * @param start Start of image pixel array.
    * @param len The length of the image pixel array.
    */
-  void InsertImageSlice(uint32_t idx, uint8_t* start, uint32_t len);
+  void InsertImageSlice(uint32_t idx, const uint8_t* start, uint32_t len);
 
   /**
    * The scan head identifier for this profile.
@@ -147,9 +161,9 @@ class Profile {
   jsLaser GetLaser() const;
 
   /**
-   * Obtains the camera's timestamp for this profile.
+   * Obtains the camera's m_timestamp for this profile.
    *
-   * @return The camera's timestamp.
+   * @return The camera's m_timestamp.
    */
   uint64_t GetTimestamp() const;
 
@@ -203,7 +217,7 @@ class Profile {
    *
    * @return Vector of point data for given profile.
    */
-  std::vector<jsProfileData> Data() const;
+  std::array<jsProfileData, JS_PROFILE_DATA_LEN>& Data();
 
   /**
    * For image mode, obtains all of the pixel data for a given profile.
@@ -215,7 +229,7 @@ class Profile {
   /**
    * Unique identifier for origin of profile data. The returned value is
    * a bit mask where bits 31 to 16 are the scan head ID, 8 to 15 are the
-   * camera ID, and 7 to 0 are the laser ID.
+   * m_camera ID, and 7 to 0 are the laser ID.
    *
    * @return Identifier to source of profile data.
    */
@@ -225,21 +239,21 @@ class Profile {
   static const int kMaxColumns = JS_CAMERA_IMAGE_DATA_MAX_WIDTH;
   static const int kMaxRows = JS_CAMERA_IMAGE_DATA_MAX_HEIGHT;
 
-  uint8_t scan_head;
-  jsCamera camera;
-  jsLaser laser;
-  uint64_t timestamp;
-  uint32_t udp_packets_expected;
-  uint32_t udp_packets_received;
-  std::vector<int64_t> encoder_vals;
-  uint32_t exposure_time;
-  uint32_t laser_on_time;
-  std::vector<jsProfileData> data;
-  std::vector<uint8_t> image;
-  uint32_t data_size;
-  uint32_t image_size;
-  uint32_t num_valid_geometry;
-  uint32_t num_valid_brightness;
+  uint8_t m_scan_head_id;
+  jsCamera m_camera;
+  jsLaser m_laser;
+  uint64_t m_timestamp;
+  uint32_t m_data_size;
+  uint32_t m_image_size;
+  uint32_t m_num_valid_brightness;
+  uint32_t m_num_valid_geometry;
+  uint32_t m_udp_packets_expected;
+  uint32_t m_udp_packets_received;
+  std::vector<int64_t> m_encoder_vals;
+  uint32_t m_exposure_time;
+  uint32_t m_laser_on_time;
+  std::array<jsProfileData, JS_PROFILE_DATA_LEN> m_data;
+  std::vector<uint8_t> m_image;
 };
 
 /*
@@ -248,19 +262,38 @@ class Profile {
 
 inline void Profile::InsertBrightness(uint32_t idx, uint8_t value)
 {
-  if (idx < data_size) {
-    data[idx].brightness = static_cast<int32_t>(value);
-    num_valid_brightness++;
-  }
+  #ifdef _DEBUG
+  assert(idx < m_data_size);
+  #endif
+
+  m_data[idx].brightness = static_cast<int32_t>(value);
+  m_num_valid_brightness++;
 }
 
 inline void Profile::InsertPoint(uint32_t idx, Point2D<int32_t> value)
 {
-  if (idx < data_size) {
-    data[idx].x = value.x;
-    data[idx].y = value.y;
-    num_valid_geometry++;
-  }
+  #ifdef _DEBUG
+  assert(idx < m_data_size);
+  #endif
+
+  m_data[idx].x = value.x;
+  m_data[idx].y = value.y;
+  m_num_valid_geometry++;
+}
+
+inline void Profile::InsertPointAndBrightness(uint32_t idx,
+                                              Point2D<int32_t> point,
+                                              uint8_t brightness)
+{
+  #ifdef _DEBUG
+  assert(idx < m_data_size);
+  #endif
+
+  m_data[idx].x = point.x;
+  m_data[idx].y = point.y;
+  m_data[idx].brightness = brightness;
+  m_num_valid_geometry++;
+  m_num_valid_brightness++;
 }
 } // namespace joescan
 

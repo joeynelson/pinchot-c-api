@@ -11,7 +11,6 @@
 #include "AlignmentParams.hpp"
 #include "PinchotConstants.hpp"
 #include "Profile.hpp"
-#include "ScanHeadReceiver.hpp"
 #include "ScanHeadSender.hpp"
 
 #include "joescan_pinchot.h"
@@ -40,7 +39,7 @@ class ScanManager {
    * @param serial_number The serial number of the scan head.
    * @return A shared pointer to an object representing the scan head.
    */
-  ScanHead* CreateScanner(std::string serial_number);
+  ScanHead* CreateScanner(uint32_t serial_number);
 
   /**
    * @brief Creates a `ScanHead` object used to receive scan data.
@@ -49,7 +48,7 @@ class ScanManager {
    * @param id The ID to associate with the scan head.
    * @return A shared pointer to an object representing the scan head.
    */
-  ScanHead* CreateScanner(std::string serial_number, uint32_t id);
+  ScanHead* CreateScanner(uint32_t serial_number, uint32_t id);
 
   /**
    * @brief Gets a `ScanHead` object used to receive scan data.
@@ -57,7 +56,7 @@ class ScanManager {
    * @param serial_number The serial number of the scan head to get.
    * @param A shared pointer to an object representing the scan head.
    */
-  ScanHead* GetScanner(std::string serial_number);
+  ScanHead* GetScanHeadBySerial(uint32_t serial_number);
 
   /**
    * @brief Gets a `ScanHead` object used to receive scan data.
@@ -65,14 +64,14 @@ class ScanManager {
    * @param id The ID of the scan head to get.
    * @param A shared pointer to an object representing the scan head.
    */
-  ScanHead* GetScanner(uint32_t id);
+  ScanHead* GetScanHeadById(uint32_t id);
 
   /**
    * @brief Removes a `ScanHead` object from use.
    *
    * @param serial_number The serial number of the scan head to remove.
    */
-  void RemoveScanner(std::string serial_number);
+  void RemoveScanner(uint32_t serial_number);
 
   /**
    * @brief Removes a `ScanHead` object from use.
@@ -102,7 +101,7 @@ class ScanManager {
    *
    * @return A vector to all scan heads that successfully connected.
    */
-  std::map<std::string, ScanHead*> Connect(uint32_t timeout_s);
+  std::map<uint32_t, ScanHead*> Connect(uint32_t timeout_s);
 
   /**
    * @brief Disconnects all `ScanHead` objects that were previously connected
@@ -131,6 +130,16 @@ class ScanManager {
    * through the `StartScanning` function.
    */
   void StopScanning();
+
+  /**
+   * @brief Requests an image from each camera on a given scan head.
+   *
+   * @param scan_head The `ScanHead` to get images from.
+   * @param config Configuration to use for image capture.
+   *
+   * @return The number of images collected on success, negative value on error.
+   */
+  int RequestImages(ScanHead *scan_head, jsScanHeadConfiguration &config);
 
   /**
    * @brief Sets the rate at which new data is sent from the scan head.
@@ -180,12 +189,10 @@ class ScanManager {
  private:
   enum SystemState { Disconnected, Connected, Scanning };
 
-  std::map<std::string, ScanHead*> BroadcastConnect(uint32_t timeout_s);
+  std::map<uint32_t, ScanHead*> BroadcastConnect(uint32_t timeout_s);
   void FillVersionInformation(VersionInformation& vi);
 
-  std::map<std::string, ScanHeadReceiver*> receivers_by_serial;
-  std::map<std::string, ScanHeadShared*> shares_by_serial;
-  std::map<std::string, ScanHead*> scanners_by_serial;
+  std::map<uint32_t, ScanHead*> scanners_by_serial;
   std::map<uint32_t, ScanHead*> scanners_by_id;
   ScanHeadSender sender;
 

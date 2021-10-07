@@ -45,7 +45,7 @@ void VersionParser::Serialize(std::vector<uint8_t> &message,
   SerializeIntegralToBytes(message, &vi.minor);
   SerializeIntegralToBytes(message, &vi.patch);
   SerializeIntegralToBytes(message, &vi.commit);
-  SerializeIntegralToBytes(message, &vi.hwid);
+  SerializeIntegralToBytes(message, &vi.product);
   SerializeIntegralToBytes(message, &vi.flags);
 }
 
@@ -57,7 +57,7 @@ int VersionParser::Deserialize(VersionInformation &vi, uint8_t *data)
   idx_p += ExtractFromNetworkBuffer(vi.minor, idx_p);
   idx_p += ExtractFromNetworkBuffer(vi.patch, idx_p);
   idx_p += ExtractFromNetworkBuffer(vi.commit, idx_p);
-  idx_p += ExtractFromNetworkBuffer(vi.hwid, idx_p);
+  idx_p += ExtractFromNetworkBuffer(vi.product, idx_p);
   idx_p += ExtractFromNetworkBuffer(vi.flags, idx_p);
 
   int bytes_deserialized = static_cast<int>(idx_p - data);

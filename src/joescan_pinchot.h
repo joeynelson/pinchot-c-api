@@ -101,6 +101,8 @@ enum jsConstants {
  * `jsGetError` function.
  */
 enum jsError {
+  /** @brief No error. */
+  JS_ERROR_NONE = 0,
   /** @brief Error resulted from internal code. */
   JS_ERROR_INTERNAL = -1,
   /** @brief Error resulted from `NULL` value passed in as argument. */
@@ -124,16 +126,22 @@ enum jsError {
  * @brief Enumerated value identifying the scan head type.
  */
 typedef enum {
-  JS_SCAN_HEAD_JS50WX = 0,
+  JS_SCAN_HEAD_INVALID_TYPE = 0,
+  JS_SCAN_HEAD_JS50WX = 1,
+  JS_SCAN_HEAD_JS50WSC = 2,
 } jsScanHeadType;
 
 /**
  * @brief Data type for identifying a camera on the scan head.
  */
 typedef enum {
-  JS_CAMERA_0 = 0,
-  JS_CAMERA_1,
+  JS_CAMERA_A = 0,
+  JS_CAMERA_B,
   JS_CAMERA_MAX,
+  /// @deprecated Use `JS_CAMERA_A`
+  JS_CAMERA_0 = JS_CAMERA_A,
+  /// @deprecated Use `JS_CAMERA_B`
+  JS_CAMERA_1 = JS_CAMERA_B,
 } jsCamera;
 
 /**
@@ -172,9 +180,6 @@ typedef enum {
   JS_DATA_FORMAT_XY_FULL,
   JS_DATA_FORMAT_XY_HALF,
   JS_DATA_FORMAT_XY_QUARTER,
-
-  // Full camera pixel image.
-  JS_DATA_FORMAT_CAMERA_IMAGE_FULL,
 } jsDataFormat;
 
 /**
@@ -475,12 +480,12 @@ typedef struct {
   uint64_t encoder_values[JS_ENCODER_MAX];
   /** @brief Number of encoder values in this profile. */
   uint32_t num_encoder_values;
-  /** @brief Time in microseconds for the camera's exposure.*/
+  /** @brief Time in microseconds for the camera's exposure. */
   uint32_t camera_exposure_time_us;
   /** @brief Time in microseconds the laser is emitting. */
   uint32_t laser_on_time_us;
 
-  /** @brief The type of image data contained in the `data` array. */
+  /** @deprecated Variable serves no purpose and will be removed. */
   jsDataFormat format;
 
   /** @brief The overall height of the image in pixels. */
@@ -688,6 +693,18 @@ EXPORTED
 bool jsScanSystemIsScanning(jsScanSystem scan_system);
 
 /**
+ * @brief Obtains the product type of a given scan head.
+ *
+ * @note This function can only be called when a scan head is successfully
+ * connected after calling `jsScanSystemConnect()`.
+ *
+ * @param scan_head Reference to scan head.
+ * @return The enumerated scan head type.
+ */
+EXPORTED
+jsScanHeadType jsScanHeadGetType(jsScanHead scan_head);
+
+/**
  * @brief Obtains the ID of the scan head.
  *
  * @param scan_head Reference to scan head.
@@ -717,24 +734,50 @@ bool jsScanHeadIsConnected(jsScanHead scan_head);
 /**
  * @brief Configures the scan head according to the parameters specified.
  *
+ * @deprecated Use `jsScanHeadSetConfiguration`.
+ *
  * @note The configuration settings are sent to the scan head during the call
  * to `jsScanSystemStartScanning()`.
  *
  * @param scan_head Reference to scan head to be configured.
- * @param cfg The configuration to be applied.
+ * @param cfg The `jsScanHeadConfiguration` to be applied.
  * @return `0` on success, negative value mapping to `jsError` on error.
  */
 EXPORTED
 int32_t jsScanHeadConfigure(jsScanHead scan_head, jsScanHeadConfiguration *cfg);
 
 /**
+ * @brief Configures the scan head according to the parameters specified.
+ *
+ * @note The configuration settings are sent to the scan head during the call
+ * to `jsScanSystemStartScanning()`.
+ *
+ * @param scan_head Reference to scan head to be configured.
+ * @param cfg The `jsScanHeadConfiguration` to be applied.
+ * @return `0` on success, negative value mapping to `jsError` on error.
+ */
+EXPORTED
+int32_t jsScanHeadSetConfiguration(jsScanHead scan_head,
+                                   jsScanHeadConfiguration *cfg);
+
+/**
+ * @brief Get's the scan head's current configuration settings.
+ *
+ * @param scan_head Reference to scan head to be configured.
+ * @param cfg The `jsScanHeadConfiguration` to be updated with current settings
+ * @return `0` on success, negative value mapping to `jsError` on error.
+ */
+EXPORTED
+int32_t jsScanHeadGetConfiguration(jsScanHead scan_head,
+                                   jsScanHeadConfiguration *cfg);
+
+/**
  * @brief Configures spatial parameters of the scan head in order to properly
  * transform the data from a camera based coordinate system to one based on
  * mill placement.
  *
- * @note If alignment settings are required, they should be set before the scan
- * window is configured through `jsScanHeadSetWindowRectangular()` to
- * allow the scan window's spatial constraints to be calculated successfully.
+ * @note The alignment settings are sent to the scan head during the call to
+ * `jsScanSystemConnect`.
  *
  * @param scan_head Reference to scan head.
  * @param roll_degrees The rotation in degrees to be applied to the Z axis.
@@ -750,7 +793,6 @@ EXPORTED
 int32_t jsScanHeadSetAlignment(jsScanHead scan_head, double roll_degrees,
                                double shift_x, double shift_y,
                                bool is_cable_downstream);
-
 /**
  * @brief Configures spatial parameters of the scan head in order to properly
  * transform the data from a camera based coordinate system to one based on
@@ -761,9 +803,8 @@ int32_t jsScanHeadSetAlignment(jsScanHead scan_head, double roll_degrees,
  * `jsScanHeadSetAlignment` function instead which will properly configure both
  * cameras with the same alignment settings.
  *
- * @note If alignment settings are required, they should be set before the scan
- * window is configured through `jsScanHeadSetWindowRectangular()` to
- * allow the scan window's spatial constraints to be calculated successfully.
+ * @note The alignment settings are sent to the scan head during the call to
+ * `jsScanSystemConnect`.
  *
  * @param scan_head Reference to scan head.
  * @param camera The camera to apply parameters to.
@@ -780,6 +821,26 @@ EXPORTED
 int32_t jsScanHeadSetAlignmentCamera(jsScanHead scan_head, jsCamera camera,
                                      double roll_degrees, double shift_x,
                                      double shift_y, bool is_cable_downstream);
+
+/**
+ * @brief Obtains the currently applied alignment settings.
+ *
+ * @note If configured using `jsScanHeadSetAlignment`, each camera will have
+ * the same alignment settings.
+ *
+ * @param scan_head Reference to scan head.
+ * @param camera The camera to get settings from.
+ * @param roll_degrees Variable to hold roll in degrees.
+ * @param shift_x Variable to hold shift in inches.
+ * @param shift_y Variable to hold shift in inches.
+ * @param is_cable_downstream Variable to hold cable orientation.
+ * @return `0` on success, negative value mapping to `jsError` on error.
+ */
+EXPORTED
+int32_t jsScanHeadGetAlignmentCamera(jsScanHead scan_head, jsCamera camera,
+                                     double *roll_degrees, double *shift_x,
+                                     double *shift_y,
+                                     bool *is_cable_downstream);
 
 /**
  * @brief Sets a rectangular scan window for a scan head to restrict its
@@ -826,6 +887,23 @@ EXPORTED
 int32_t jsScanHeadWaitUntilProfilesAvailable(jsScanHead scan_head,
                                              uint32_t count,
                                              uint32_t timeout_us);
+
+/**
+ * @brief Empties the internal client side software buffers used to store
+ * profiles received from a given scan head.
+ *
+ * @note Under normal scanning conditions where the application consumes
+ * profiles as they become available, this function will not be needed. It's
+ * use is to be found in cases where the application fails to consume profiles
+ * after some time and the number of buffered profiles, as indicated by the
+ * `jsScanHeadGetProfilesAvailable` function becomes more than the application
+ * can consume and only the most recent scan data is desired.
+ *
+ * @param scan_head Reference to scan head.
+ * @return `0` on success, negative value mapping to `jsError` on error.
+ */
+EXPORTED
+int32_t jsScanHeadClearProfiles(jsScanHead scan_head);
 
 /**
  * @brief Reads `jsProfile` formatted profile data from a given scan head.

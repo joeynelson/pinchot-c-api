@@ -12,6 +12,12 @@
 #include <string>
 #include <vector>
 
+#ifdef __linux__
+#include <arpa/inet.h>
+#else
+#include <WinSock2.h>
+#endif
+
 namespace joescan {
 /// The number of bits per byte.
 static const int kBitsPerByte = 8;
@@ -78,32 +84,47 @@ inline DataType operator|(DataType original, DataType additionalType)
  * order, so all elements larger than 1 byte must be converted with
  * hton/ntoh.
  */
-struct DatagramHeader {
-  uint16_t magic;                // 2    2
-  uint16_t exposureTime;         // 2    4
-  uint8_t scanHeadId;            // 1    5
-  uint8_t cameraId;              // 1    6
-  uint8_t laserId;               // 1    7
-  uint8_t flags;                 // 1    8
-  uint64_t timestamp;            // 8    16
-  uint16_t laserPulseWidth;      // 2    18
-  uint16_t dataType;             // 2    20
-  uint16_t payloadLength;        // 2    22
-  uint8_t numEncoderVals;        // 1    23
-  uint8_t DEPRECATED_DO_NOT_USE; // 1    24
-  uint32_t datagramPosition;     // hack to support big buffers
-  uint32_t numberOfDatagrams;    // hack to support big buffers
-};
+#pragma pack(push, 1)
+struct DatagramHeader {           // size  byte offset
+  uint16_t magic;                 // 2      0
+  uint16_t exposure_time_us;      // 2      2
+  uint8_t scan_head_id;           // 1      4
+  uint8_t camera_id;              // 1      5
+  uint8_t laser_id;               // 1      6
+  uint8_t flags;                  // 1      7
+  uint64_t timestamp_ns;          // 8      8
+  uint16_t laser_on_time_us;      // 2     16
+  uint16_t data_type;             // 2     18
+  uint16_t data_length;           // 2     20
+  uint8_t number_encoders;        // 1     22
+  uint8_t DEPRECATED_DO_NOT_USE;  // 1     23
+  uint32_t datagram_position;     // 4     24
+  uint32_t number_datagrams;      // 4     28
+  uint16_t start_column;          // 2     32
+  uint16_t end_column;            // 2     34
+};                                // total 36
+#pragma pack(pop)
 
 /**
  * This is the header for any packet that is _not_ a profile
  * or image data packet. This header should never change.
  */
+#pragma pack(push, 1)
 struct InfoHeader {
+  InfoHeader() = default;
+  InfoHeader(uint8_t *buf)
+  {
+    magic = htons(*reinterpret_cast<uint16_t *>(&buf[0]));
+    size = buf[2];
+    type = buf[3];
+  }
+
   uint16_t magic;
   uint8_t size;
   uint8_t type;
 };
+#pragma pack(pop)
+
 } // namespace joescan
 
 #endif

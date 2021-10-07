@@ -9,6 +9,7 @@
 #include "Enums.hpp"
 #include "TcpSerializationHelpers.hpp"
 #include "VersionParser.hpp"
+#include "joescan_pinchot.h"
 
 using namespace joescan;
 
@@ -17,6 +18,7 @@ StatusMessage::StatusMessage()
   packet.header.magic = kResponseMagic;
   packet.header.size = kMinStatusMessageSize;
   packet.header.type = UdpPacketType::Status;
+  packet.global_time = 0;
 }
 
 StatusMessage::StatusMessage(uint32_t scan_head_ip, uint32_t serial_number,
@@ -27,6 +29,7 @@ StatusMessage::StatusMessage(uint32_t scan_head_ip, uint32_t serial_number,
   packet.serial_number = serial_number;
   packet.max_scan_rate = max_scan_rate;
   packet.version = version;
+  packet.global_time = 0;
 }
 
 StatusMessage::StatusMessage(uint8_t *bytes, uint32_t num_bytes)
@@ -60,6 +63,14 @@ StatusMessage::StatusMessage(uint8_t *bytes, uint32_t num_bytes)
   idx_p += ExtractFromNetworkBuffer(packet.num_profiles_sent, idx_p);
   idx_p += ExtractFromNetworkBuffer(packet.valid_encoders, idx_p);
   idx_p += ExtractFromNetworkBuffer(packet.valid_cameras, idx_p);
+  idx_p += ExtractFromNetworkBuffer(packet.reserved_0, idx_p);
+  idx_p += ExtractFromNetworkBuffer(packet.reserved_1, idx_p);
+  idx_p += ExtractFromNetworkBuffer(packet.reserved_2, idx_p);
+  idx_p += ExtractFromNetworkBuffer(packet.reserved_3, idx_p);
+  idx_p += ExtractFromNetworkBuffer(packet.reserved_4, idx_p);
+  idx_p += ExtractFromNetworkBuffer(packet.reserved_5, idx_p);
+  idx_p += ExtractFromNetworkBuffer(packet.reserved_6, idx_p);
+  idx_p += ExtractFromNetworkBuffer(packet.reserved_7, idx_p);
   ValidatePacketData(packet);
 
   // Variable Data
@@ -108,6 +119,16 @@ std::vector<uint8_t> StatusMessage::Serialize() const
   SerializeIntegralToBytes(message, &packet.num_profiles_sent);
   SerializeIntegralToBytes(message, &packet.valid_encoders);
   SerializeIntegralToBytes(message, &packet.valid_cameras);
+
+  // Reserved for future use
+  SerializeIntegralToBytes(message, &packet.reserved_0);
+  SerializeIntegralToBytes(message, &packet.reserved_1);
+  SerializeIntegralToBytes(message, &packet.reserved_2);
+  SerializeIntegralToBytes(message, &packet.reserved_3);
+  SerializeIntegralToBytes(message, &packet.reserved_4);
+  SerializeIntegralToBytes(message, &packet.reserved_5);
+  SerializeIntegralToBytes(message, &packet.reserved_6);
+  SerializeIntegralToBytes(message, &packet.reserved_7);
 
   // Variable Data
   for (int i = 0; i < packet.valid_encoders; i++) {
@@ -159,10 +180,11 @@ void StatusMessage::ValidatePacketData(const StatusMessagePacket &pkt)
 
 void StatusMessage::ValidatePacketVersion(const VersionInformation &ver)
 {
-  if (ver.hwid == HardwareId::Invalid ||
-      (ver.hwid != HardwareId::XU3 && ver.hwid != HardwareId::TE0820)) {
-    throw std::runtime_error("Invalid hardware ID: " +
-                             std::to_string(ver.hwid));
+  if (ver.product == JS_SCAN_HEAD_INVALID_TYPE ||
+      ((ver.product != JS_SCAN_HEAD_JS50WX) &&
+       (ver.product != JS_SCAN_HEAD_JS50WSC))) {
+    throw std::runtime_error("Invalid product ID: " +
+                             std::to_string(ver.product));
   }
 
   if (ver.major == 0) {
