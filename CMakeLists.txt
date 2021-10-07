@@ -2,8 +2,8 @@ cmake_minimum_required (VERSION 3.1)
 project (pinchot)
 
 if (WIN32)
-  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT /EHsc")
-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd /EHsc")
+  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD /EHsc")
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MDd /EHsc")
 endif (WIN32)
 
 if (UNIX)
@@ -18,7 +18,11 @@ set(PINCHOT_API_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 include(CAPISources)
 include(VersionInfo)
-
-add_library(pinchot SHARED ${C_API_SOURCES})
+  
+add_library(pinchot ${C_API_SOURCES})
+target_include_directories(pinchot PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
 target_link_libraries(pinchot ${CMAKE_THREAD_LIBS_INIT})
 install(TARGETS pinchot DESTINATION ${SRC_DIR})
+install(TARGETS pinchot DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(FILES joescan_pinchot.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
