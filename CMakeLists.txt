@@ -5,8 +5,6 @@ include(GNUInstallDirs)
 
 set(CMAKE_CXX_STANDARD 11)
 
-set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
-
 add_compile_definitions(WIN_EXPORT)
 if (MSVC)
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD /EHsc")
