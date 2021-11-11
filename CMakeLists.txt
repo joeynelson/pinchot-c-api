@@ -29,9 +29,9 @@ target_include_directories(pinchot PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
 target_link_libraries(pinchot ${CMAKE_THREAD_LIBS_INIT})
 if (WIN32)
-    find_library(WSOCK32_LIBRARY wsock32)
-    find_library(WS2_32_LIBRARY ws2_32)
-    target_link_libraries(pinchot ${WSOCK32_LIBRARY} ${WS2_32_LIBRARY})
+    #find_library(WSOCK32_LIBRARY wsock32)
+    #find_library(WS2_32_LIBRARY ws2_32)
+    target_link_libraries(pinchot wsock32 ws2_32)
 endif (WIN32)
 
 install(TARGETS pinchot
