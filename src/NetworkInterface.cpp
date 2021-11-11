@@ -14,7 +14,7 @@
 #include "NetworkInterface.hpp"
 #include "NetworkTypes.hpp"
 
-#ifdef __linux__
+#ifdef __linux__ || __APPLE__
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 #include <netdb.h>
@@ -31,7 +31,7 @@ using namespace joescan;
 
 void NetworkInterface::InitSystem(void)
 {
-#ifdef __linux__
+#ifdef __linux__ || __APPLE__
 #else
   WSADATA wsa;
   int result = WSAStartup(MAKEWORD(2, 2), &wsa);
@@ -45,7 +45,7 @@ void NetworkInterface::InitSystem(void)
 
 void NetworkInterface::FreeSystem(void)
 {
-#ifdef __linux__
+#ifdef __linux__ || __APPLE__
 #else
   WSACleanup();
 #endif
@@ -60,7 +60,7 @@ net_iface NetworkInterface::InitBroadcastSocket(uint32_t ip, uint16_t port)
   iface = InitUDPSocket(ip, port);
   sockfd = iface.sockfd;
 
-#if __linux__
+#if __linux__ || __APPLE__
   int bcast_en = 1;
 #else
   char bcast_en = 1;
@@ -86,7 +86,7 @@ net_iface NetworkInterface::InitRecvSocket(uint32_t ip, uint16_t port)
   {
     int m = 0;
     int n = kRecvSocketBufferSize;
-#ifdef __linux__
+#ifdef __linux__ || __APPLE__
     socklen_t sz = sizeof(n);
     r = setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, (void *)&n, sz);
     if (SOCKET_ERROR != r) {
@@ -115,7 +115,7 @@ net_iface NetworkInterface::InitSendSocket(uint32_t ip, uint16_t port)
 
 void NetworkInterface::CloseSocket(SOCKET sockfd)
 {
-#ifdef __linux__
+#ifdef __linux__ || __APPLE__
   close(sockfd);
 #else
   int lastError = WSAGetLastError();
@@ -128,7 +128,7 @@ std::vector<uint32_t> NetworkInterface::GetActiveIpAddresses()
 {
   std::vector<uint32_t> ip_addrs;
 
-#ifdef __linux__
+#ifdef __linux__ || __APPLE__
   {
     // BSD-style implementation
     struct ifaddrs *root_ifa;
