@@ -1,6 +1,8 @@
 cmake_minimum_required (VERSION 3.1)
 project (pinchot)
 
+include(GNUInstallDirs)
+
 set(CMAKE_CXX_STANDARD 11)
 
 if (MSVC)
@@ -25,6 +27,6 @@ add_library(pinchot ${C_API_SOURCES})
 target_include_directories(pinchot PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
 target_link_libraries(pinchot ${CMAKE_THREAD_LIBS_INIT})
-install(TARGETS pinchot DESTINATION ${SRC_DIR})
-install(TARGETS pinchot DESTINATION ${CMAKE_INSTALL_LIBDIR})
-install(FILES joescan_pinchot.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(TARGETS pinchot
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
