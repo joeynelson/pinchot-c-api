@@ -12,10 +12,10 @@
 #include <string>
 #include <vector>
 
-#if defined __linux__ || defined __APPLE__
-#include <arpa/inet.h>
-#else
+#ifdef _WIN32
 #include <winsock2.h>
+#else
+#include <arpa/inet.h>
 #endif
 
 namespace joescan {
