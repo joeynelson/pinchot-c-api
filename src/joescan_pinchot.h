@@ -35,8 +35,7 @@ extern "C" {
 #ifdef __GNUC__
 #define EXPORTED __attribute__((dllimport))
 #else
-//#define EXPORTED __declspec(dllimport)
-#define EXPORTED __declspec(dllexport)
+#define EXPORTED __declspec(dllimport)
 #endif
 #endif
 #define NOT_EXPORTED
