@@ -2,6 +2,7 @@ cmake_minimum_required (VERSION 3.1)
 project (pinchot)
 
 include(GNUInstallDirs)
+include(Utilities)
 
 set(CMAKE_CXX_STANDARD 11)
 
