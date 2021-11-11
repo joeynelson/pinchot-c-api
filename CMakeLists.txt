@@ -5,6 +5,8 @@ include(GNUInstallDirs)
 
 set(CMAKE_CXX_STANDARD 11)
 
+set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+
 if (MSVC)
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD /EHsc")
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MDd /EHsc")
@@ -22,7 +24,7 @@ set(PINCHOT_API_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 include(CAPISources)
 include(VersionInfo)
-  
+
 add_library(pinchot ${C_API_SOURCES})
 target_include_directories(pinchot PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
