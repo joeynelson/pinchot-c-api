@@ -31,7 +31,7 @@ target_link_libraries(pinchot ${CMAKE_THREAD_LIBS_INIT})
 if (WIN32)
     #find_library(WSOCK32_LIBRARY wsock32)
     #find_library(WS2_32_LIBRARY ws2_32)
-    target_link_libraries(pinchot wsock32 ws2_32)
+    target_link_libraries(pinchot wsock32 ws2_32 iphlpapi)
 endif (WIN32)
 
 install(TARGETS pinchot
