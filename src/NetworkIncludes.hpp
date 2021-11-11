@@ -17,9 +17,9 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <iphlpapi.h>
-#include <arpa/inet.h>
 #else
 
+#include <arpa/inet.h>
 // Windows specific includes missing in Linux
 #ifndef SOCKET
 #define SOCKET int
