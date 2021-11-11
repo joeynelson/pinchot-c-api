@@ -8,7 +8,7 @@
 #ifndef JOESCAN_NETWORK_INCLUDES_H
 #define JOESCAN_NETWORK_INCLUDES_H
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 
 #include <arpa/inet.h>
 // Windows specific includes missing in Linux
