@@ -19,6 +19,7 @@
 #include <ifaddrs.h>
 #include <netdb.h>
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <unistd.h>
 #else
 #include <ws2tcpip.h>
