@@ -20,6 +20,8 @@
 #else
 
 #include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
 // Windows specific includes missing in Linux
 #ifndef SOCKET
 #define SOCKET int
