@@ -274,11 +274,11 @@ class StatusMessage {
      */
 
     // See `valid_encoders` for number of valid elements
-    std::array<uint64_t, kMaxEncoders> encoders = {0};
+    std::array<uint64_t, kMaxEncoders> encoders = {{0}};
 
     // See `valid_cameras` for number of valid elements
-    std::array<int32_t, kMaxCameras> pixels_in_window = {0};
-    std::array<int32_t, kMaxCameras> camera_temp = {0};
+    std::array<int32_t, kMaxCameras> pixels_in_window = {{0}};
+    std::array<int32_t, kMaxCameras> camera_temp = {{0}};
   };
 #pragma pack(pop)
 
