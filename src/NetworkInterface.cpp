@@ -20,6 +20,7 @@
 #include <netdb.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
 #include <unistd.h>
 #else
 #include <ws2tcpip.h>
